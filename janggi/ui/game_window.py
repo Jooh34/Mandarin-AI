@@ -1,81 +1,96 @@
-import logging
-import os
-import pkg_resources
 import pygame
+import os, pkg_resources
 from typing import List, Optional
 
-from janggi.core.board import Board
 
+from core.board import Board
+from core.types import MAX_ROW, MAX_COL, Piece
 
-WIDTH, HEIGHT = 500, 500
+WIDTH, HEIGHT = 1000, 500
 BOARD_WIDTH, BOARD_HEIGHT = 500, 500
-PIECE_WIDTH, PIECE_HEIGHT = 40, 40
-BOARD_Y, BOARD_X = 10, 10
-ROW_GAP, COL_GAP = 50, 55
+PIECE_WIDTH, PIECE_HEIGHT = 50, 50
+BOARD_START_W, BOARD_START_H = -24, -24
+ROW_GAP, COL_GAP = 50, 56
+
+WHITE = (255,255,255)
+BLACK = ( 0, 0, 0 )
 IMG_PATH = "images/"
 BOARD_FILENAME = "board.png"
 
 class GameWindow:
-    """Class that renders board display using pygame."""
+    """Class that renders board game."""
 
-    def __init__(self, board: Optional[Board] = None):
+    def __init__(self, board):
+        print('game window!')
         pygame.init()
         pygame.display.init()
-        pygame.display.set_caption("Janggi")
         self.display = pygame.display.set_mode((WIDTH, HEIGHT))
+        pygame.display.set_caption("Mandarin-AI")
+
         self.board = board
-        self.board_img = None
-        self.piece_imgs = {Camp.CHO: {}, Camp.HAN: {}}
+        self.piece_imgs = {}
+
+        self._init_board_image()
+        self._init_piece_images()
         self.board_markers = []
 
-        self._initialize_board_image()
+        self.current_move = 0
 
+        self.render()
+    
     def render(self):
+        self.display.fill(WHITE)
         self.display.blit(self.board_img, (0, 0))
-        # Draw pieces
-        if self.board:
-            for row, col in self.board.get_piece_locations():
-                piece = self.board.get(row, col)
-                if piece.camp is None:
-                    logging.warning(
-                        f"(GameWindow) Camp is not assigned for piece {piece.piece_type}")
-                    continue
-                piece_img = self.piece_imgs[piece.camp][piece.piece_type]
-                x, y = self.get_board_xy(row, col)
-                self.display.blit(
-                    piece_img,
-                    (
-                        x - PIECE_WIDTH // 2,
-                        y - PIECE_HEIGHT // 2
-                    )
-                )
+        self._draw_pieces()
+
         # Draw markers
         for marker in self.board_markers:
-            marker.draw()
+            marker.draw(self.display)
 
         pygame.event.pump()
         pygame.display.update()
 
     def close(self):
         pygame.quit()
-
-    def switch_board(self, board: Board):
+    
+    def switch_board(self, current_move, board):
+        self.current_move = current_move
         self.board = board
-        pygame.event.pump()
 
-    def get_board_xy(self, row: int, col: int):
-        return (
-            BOARD_X + COL_GAP * col + PIECE_WIDTH // 2,
-            BOARD_Y + ROW_GAP * row + PIECE_HEIGHT // 2
-        )
-
-    def _initialize_board_image(self):
+    def switch_markers(self, markers):
+        self.board_markers = markers
+        
+    def _init_board_image(self):
         board_path = os.path.join(IMG_PATH, BOARD_FILENAME)
         board_file = pkg_resources.resource_filename(__name__, board_path)
         board_img = pygame.image.load(board_file)
-        self.board_img = pygame.transform.scale(
-            board_img, (BOARD_WIDTH, BOARD_HEIGHT))
+        self.board_img = pygame.transform.scale( board_img, (BOARD_WIDTH, BOARD_HEIGHT))
 
-    def _get_image_path(self, camp: Camp, piece_type: PieceType):
-        filename = f"{camp.name.lower()}_{piece_type.name.lower()}.png"
+    def _init_piece_images(self):
+        for piece in Piece:
+            piece_path = self._get_image_path(piece)
+            piece_file = pkg_resources.resource_filename( __name__, piece_path)
+            piece_img = pygame.image.load(piece_file)
+            self.piece_imgs[piece] = pygame.transform.scale(piece_img, (PIECE_WIDTH, PIECE_HEIGHT))
+                
+    def _get_image_path(self, piece: Piece):
+        filename = f"{piece.name.lower()}.png"
         return os.path.join(IMG_PATH, filename)
+
+    def _draw_pieces(self):
+        # Draw pieces
+        if self.board:
+            for row in range(MAX_ROW):
+                for col in range(MAX_COL):
+                    piece = self.board.get(row,col)
+                    if piece == 0:
+                        continue
+                    piece_img = self.piece_imgs[piece]
+                    loc = self.rowcol_to_pos(row,col)
+                    self.display.blit(piece_img, loc)
+
+    def rowcol_to_pos(self,row,col):
+        return (BOARD_START_W + COL_GAP * col + PIECE_WIDTH // 2, BOARD_START_H + ROW_GAP * row + PIECE_HEIGHT // 2)
+    
+    def pos_to_rowcol(self,px,py):
+        return ((py-BOARD_START_H-PIECE_HEIGHT//2)//ROW_GAP, (px-BOARD_START_W-PIECE_WIDTH//2)//COL_GAP)

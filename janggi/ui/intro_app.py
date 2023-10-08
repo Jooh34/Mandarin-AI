@@ -4,6 +4,7 @@ from PyQt5.QtGui import QPalette
 from PyQt5.QtCore import Qt
 
 from ui.replay_viewer import ReplayViewer
+from ui.game_player import GamePlayer
 
 DEFAULT_GIB_FILE = "E:\work\Mandarin-AI\data\햇터몰배 제2회 세계인 장기대회 2(하여명 vs 전동하).gib"
 
@@ -36,6 +37,13 @@ class IntroApp(QWidget):
         hbox2.addWidget(gibo_load_btn)
         hbox2.addWidget(gibo_replay_start_btn)
         hboxes.append(hbox2)
+
+        # hbox3
+        hbox3 = QHBoxLayout()
+        new_game_start_btn = QPushButton("Start New Game",self)
+        new_game_start_btn.clicked.connect(self.btn_newgame_start)    
+        hboxes.append(hbox3)
+
 
         # vertical
         vbox = QVBoxLayout()
@@ -73,3 +81,7 @@ class IntroApp(QWidget):
         
         replay_viewer = ReplayViewer(fname)
         replay_viewer.run()
+
+    def btn_newgame_start(self):
+        game_player = GamePlayer()
+        game_player.run()

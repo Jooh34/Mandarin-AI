@@ -1,4 +1,7 @@
 from core.types import Formation, Piece, Camp
+from core.move import Move
+
+from copy import deepcopy
 
 class Board:
     """
@@ -7,7 +10,7 @@ class Board:
     """
 
     def __init__(self, cho_formation: Formation, han_formation: Formation):
-        self.board = [[0]*9 for _ in range(10)]
+        self._board = [[0]*9 for _ in range(10)]
         self.cho_formation = cho_formation
         self.han_formation = han_formation
 
@@ -17,15 +20,15 @@ class Board:
         self.rotate()
 
     def get(self, r, c):
-        return self.board[r][c]
+        return self._board[r][c]
 
     def set(self, r, c, v):
-        self.board[r][c] = v
+        self._board[r][c] = v
     
     def rotate(self):
         for _ in range(2):
-            tuples = zip(*self.board[::-1])
-            self.board = [list(elem) for elem in tuples]
+            tuples = zip(*self._board[::-1])
+            self._board = [list(elem) for elem in tuples]
 
     def reverse_formation(self, formation: Formation):
         if formation == Formation.MSMS:
@@ -43,39 +46,46 @@ class Board:
             
         zol_cols = [0,2,4,6,8]
         for zol_col in zol_cols:
-            self.board[6][zol_col] = Piece.CHO_ZOL * camp
+            self._board[6][zol_col] = Piece.CHO_ZOL * camp
         
-        self.board[7][1] = Piece.CHO_PO * camp
-        self.board[7][7] = Piece.CHO_PO * camp
+        self._board[7][1] = Piece.CHO_PO * camp
+        self._board[7][7] = Piece.CHO_PO * camp
 
-        self.board[9][0] = Piece.CHO_CHA * camp
-        self.board[9][8] = Piece.CHO_CHA * camp
+        self._board[9][0] = Piece.CHO_CHA * camp
+        self._board[9][8] = Piece.CHO_CHA * camp
 
-        self.board[9][3] = Piece.CHO_SA * camp
-        self.board[9][5] = Piece.CHO_SA * camp
+        self._board[9][3] = Piece.CHO_SA * camp
+        self._board[9][5] = Piece.CHO_SA * camp
 
-        self.board[8][4] = Piece.CHO_GOONG * camp
+        self._board[8][4] = Piece.CHO_GOONG * camp
 
         if formation == Formation.MSMS:
-            self.board[9][1] = Piece.CHO_MA * camp
-            self.board[9][2] = Piece.CHO_SANG * camp
-            self.board[9][6] = Piece.CHO_MA * camp
-            self.board[9][7] = Piece.CHO_SANG * camp
+            self._board[9][1] = Piece.CHO_MA * camp
+            self._board[9][2] = Piece.CHO_SANG * camp
+            self._board[9][6] = Piece.CHO_MA * camp
+            self._board[9][7] = Piece.CHO_SANG * camp
         
         elif formation == Formation.MSSM:
-            self.board[9][1] = Piece.CHO_MA * camp
-            self.board[9][2] = Piece.CHO_SANG * camp
-            self.board[9][6] = Piece.CHO_SANG * camp
-            self.board[9][7] = Piece.CHO_MA * camp
+            self._board[9][1] = Piece.CHO_MA * camp
+            self._board[9][2] = Piece.CHO_SANG * camp
+            self._board[9][6] = Piece.CHO_SANG * camp
+            self._board[9][7] = Piece.CHO_MA * camp
         
         elif formation == Formation.SMMS:
-            self.board[9][1] = Piece.CHO_SANG * camp
-            self.board[9][2] = Piece.CHO_MA * camp
-            self.board[9][6] = Piece.CHO_MA * camp
-            self.board[9][7] = Piece.CHO_SANG * camp
+            self._board[9][1] = Piece.CHO_SANG * camp
+            self._board[9][2] = Piece.CHO_MA * camp
+            self._board[9][6] = Piece.CHO_MA * camp
+            self._board[9][7] = Piece.CHO_SANG * camp
         
         else: # formation == Formation.SMSM
-            self.board[9][1] = Piece.CHO_SANG * camp
-            self.board[9][2] = Piece.CHO_MA * camp
-            self.board[9][6] = Piece.CHO_SANG * camp
-            self.board[9][7] = Piece.CHO_MA * camp 
+            self._board[9][1] = Piece.CHO_SANG * camp
+            self._board[9][2] = Piece.CHO_MA * camp
+            self._board[9][6] = Piece.CHO_SANG * camp
+            self._board[9][7] = Piece.CHO_MA * camp
+
+    def get_possible_actions(self):
+        return Move.get_possible_actions(self._board)
+
+    def take_action(self, action):
+        new_state = deepcopy(self)
+        pass
