@@ -44,8 +44,6 @@ class ReplayViewer:
             self.current_move += 1
             board = self.gibo.board_history[self.current_move]
             actions = board.get_possible_actions()
-            for a in actions:
-                print(a)
 
             self.window.switch_board(self.current_move, board)
             self.window.render()

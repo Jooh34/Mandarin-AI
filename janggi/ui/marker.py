@@ -22,9 +22,9 @@ class BoardMarker:
 
     def draw(self, screen):
         if self.marker_type == MarkerType.SELECT:
-            pygame.draw.circle(screen, RED, (self.x, self.y), 20, width=1)
+            pygame.draw.circle(screen, RED, (self.x, self.y), 20, width=2)
         elif self.marker_type == MarkerType.NEXT_ACTION:
-            pygame.draw.circle(screen, GREEN, (self.x, self.y), 10)
+            pygame.draw.circle(screen, GREEN, (self.x, self.y), 7.5)
 
     def rowcol_to_pos(self, row, col):
         return (BOARD_START_W + COL_GAP * col + PIECE_WIDTH, BOARD_START_H + ROW_GAP * row + PIECE_HEIGHT)

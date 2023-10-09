@@ -1,5 +1,5 @@
 from core.types import Formation, Piece, Camp
-from core.move import Move
+from core.move import Move, Action
 
 from copy import deepcopy
 
@@ -86,6 +86,8 @@ class Board:
     def get_possible_actions(self):
         return Move.get_possible_actions(self._board)
 
-    def take_action(self, action):
+    def take_action(self, action: Action):
         new_state = deepcopy(self)
-        pass
+        new_state.set(*action.prev, 0)
+        new_state.set(*action.next, action.piece)
+        return new_state
