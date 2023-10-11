@@ -3,6 +3,9 @@ from core.move import Move, Action
 
 from copy import deepcopy
 
+BOARD_H = 10
+BOARD_W = 9
+
 class Board:
     """
     Simple board class used for the game of Janggi. Contains and handles a single 
@@ -10,7 +13,7 @@ class Board:
     """
 
     def __init__(self, cho_formation: Formation, han_formation: Formation):
-        self._board = [[0]*9 for _ in range(10)]
+        self._board = [[0]*BOARD_W for _ in range(BOARD_H)]
         self.cho_formation = cho_formation
         self.han_formation = han_formation
 
@@ -29,6 +32,12 @@ class Board:
         for _ in range(2):
             tuples = zip(*self._board[::-1])
             self._board = [list(elem) for elem in tuples]
+
+    def rotate_and_reverse(self):
+        self.rotate()
+        for i in range(BOARD_H):
+            for j in range(BOARD_W):
+                self._board[i][j] = -self._board[i][j]
 
     def reverse_formation(self, formation: Formation):
         if formation == Formation.MSMS:

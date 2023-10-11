@@ -78,7 +78,7 @@ class MCTS():
         actions = node.state.getPossibleActions()
         for action in actions:
             if action not in node.children:
-                newNode = treeNode(node.state.takeAction(action), node)
+                newNode = TreeNode(node.state.takeAction(action), node)
                 node.children[action] = newNode
                 if len(actions) == len(node.children):
                     node.isFullyExpanded = True
