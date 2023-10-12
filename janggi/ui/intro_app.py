@@ -69,7 +69,6 @@ class IntroApp(QWidget):
         '''
         fname=QFileDialog.getOpenFileName(self)    
         self.selected_file_text.setText(fname[0])
-        print('btn_gibo_load : ', fname[0])
 
     def btn_replay_start(self):
         '''

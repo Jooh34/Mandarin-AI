@@ -6,10 +6,19 @@ class Action:
         self.next = next
         self.piece = piece
         self.move_type = move_type
-    
+
     def __str__(self):
-        print(self.piece)
         return f'{self.prev[0]}{self.prev[1]}{Util.piece_to_kor(self.piece)}{self.next[0]}{self.next[1]} {self.move_type}'
+    
+    @staticmethod
+    def init_by_id(id:str):
+        px,py,nx,ny,piece,move_type = map(int, id.split(' '))
+        prev = (px,py)
+        next = (nx,ny)
+        return Action(prev, next, piece, move_type)
+    
+    def get_unique_id(self):
+        return f'{self.prev[0]} {self.prev[1]} {self.next[0]} {self.next[1]} {self.piece} {self.move_type}'
     
     def is_prev(self,x,y):
         return x==self.prev[0] and y==self.prev[1]

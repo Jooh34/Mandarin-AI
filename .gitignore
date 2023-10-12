@@ -11,3 +11,6 @@ __pycache__/
 build/
 develop-eggs/
 dist/
+
+# custom
+janggi/ai/checkpoint/

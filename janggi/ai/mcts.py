@@ -1,106 +1,161 @@
 import time
 import math
 import random
+import numpy
+import tracemalloc
+from copy import deepcopy
+from collections import defaultdict
 
+from core.board import Board
+from ai.config import AlphaZeroConfig
+from typing import List
 
-class TreeNode():
-    def __init__(self, state, parent):
-        self.state = state
-        self.isTerminal = state.isTerminal()
-        self.isFullyExpanded = self.isTerminal
-        self.parent = parent
-        self.numVisits = 0
-        self.total_qvalue = 0
+class Node:
+    def __init__(self, prior: float):
+        self.prior = prior
+        self.visit_count = 0
+        self.value_sum = 0
+
+        self.turn = -1
         self.children = {}
+
+    def expanded(self):
+        return len(self.children) > 0
+    
+    def value(self):
+        if self.visit_count == 0:
+            return 0
+        return self.value_sum / self.visit_count
 
     def __str__(self):
         s=[]
-        s.append("totalReward: %s"%(self.totalReward))
-        s.append("numVisits: %d"%(self.numVisits))
-        s.append("isTerminal: %s"%(self.isTerminal))
-        s.append("possibleActions: %s"%(self.children.keys()))
+        s.append("value_sum: %s"%(self.value_sum))
+        s.append("visit_count: %d"%(self.visit_count))
+        s.append("possible_actions: %s"%(self.children.keys()))
         return "%s: {%s}"%(self.__class__.__name__, ', '.join(s))
 
-class MCTS():
-    def __init__(self, time_limit=None, iteration_limit=None, exploration_constant=1 / math.sqrt(2)):
-        if time_limit != None:
-            if iteration_limit != None:
-                raise ValueError("Cannot have both a time limit and an iteration limit")
-            # time taken for each MCTS search in milliseconds
-            self.time_limit = time_limit
-            self.limit_type = 'time'
-        else:
-            if iteration_limit == None:
-                raise ValueError("Must have either a time limit or an iteration limit")
-            # number of iterations of the search
-            if iteration_limit < 1:
-                raise ValueError("Iteration limit must be greater than one")
-            self.searchLimit = iteration_limit
-            self.limit_type = 'iterations'
+class Timer:
+    def __init__(self, mem_trace=False):
+        self.d_start = defaultdict(float)
+        self.d_times = defaultdict(float)
+        self.mem_trace = mem_trace
+        if mem_trace:
+            tracemalloc.start()
 
-        self.exploration_constant = exploration_constant
+    def start(self, key):
+        self.d_start[key] = time.time()
 
-    def search(self, initialState, needDetails=False):
-        self.root = TreeNode(initialState, None)
+    def end(self, key):
+        elapsed = time.time() - self.d_start[key]
+        self.d_start[key] = 0
+        self.d_times[key] += elapsed
 
-        if self.limit_type == 'time':
-            time_limit = time.time() + self.time_limit / 1000
-            while time.time() < time_limit:
-                self.executeRound()
-        else:
-            for i in range(self.searchLimit):
-                self.executeRound()
+    def reset_timer(self):
+        self.d_start.clear()
+        self.d_times.clear()
 
-        bestChild = self.getBestChild(self.root, 0)
-        action=(action for action, node in self.root.children.items() if node is bestChild).__next__()
-        if needDetails:
-            return {"action": action, "expectedReward": bestChild.totalReward / bestChild.numVisits}
-        else:
-            return action
+    def show(self, reset=False):
+        for s,f in self.d_times.items():
+            print(s, ": ", f)
+        
+        if reset:
+            self.reset_timer()
 
-    def executeRound(self):
-        """
-            execute a selection-expansion-simulation-backpropagation round
-        """
-        node = self.selectNode(self.root)
-        reward = self.rollout(node.state)
-        self.backpropogate(node, reward)
+        if self.mem_trace:
+            print(tracemalloc.get_traced_memory())
 
-    def selectNode(self, node):
-        while not node.isTerminal:
-            if node.isFullyExpanded:
-                node = self.getBestChild(node, self.exploration_constant)
-            else:
-                return self.expand(node)
-        return node
+class MCTS:
+    def __init__(self, config: AlphaZeroConfig):
+        self.config = config
+        self.timer = Timer()
 
-    def expand(self, node):
-        actions = node.state.getPossibleActions()
-        for action in actions:
-            if action not in node.children:
-                newNode = TreeNode(node.state.takeAction(action), node)
-                node.children[action] = newNode
-                if len(actions) == len(node.children):
-                    node.isFullyExpanded = True
-                return newNode
+    def show_timer(self, reset=False):
+        self.timer.show(reset)
 
-        raise Exception("Should never reach here")
+    def run_mcts(self, board: Board, nnet):
+        root = Node(0)
+        self.evaluate(root, board, nnet)
+        self.add_exploration_noise(root)
 
-    def backpropagate(self, node, qvalue):
-        while node is not None:
-            node.numVisits += 1
-            node.total_qvalue += qvalue
-            node = node.parent
+        for _ in range(self.config.num_simulations):
+            node = root
+            # self.timer.start('deepcopy')
+            scratch_game = deepcopy(board)
+            # self.timer.end('deepcopy')
+            search_path = [node]
 
-    def getBestChild(self, node, explorationValue):
-        bestValue = float("-inf")
-        bestNodes = []
-        for child in node.children.values():
-            nodeValue = node.state.getCurrentPlayer() * child.totalReward / child.numVisits + explorationValue * math.sqrt(
-                2 * math.log(node.numVisits) / child.numVisits)
-            if nodeValue > bestValue:
-                bestValue = nodeValue
-                bestNodes = [child]
-            elif nodeValue == bestValue:
-                bestNodes.append(child)
-        return random.choice(bestNodes)
+            # self.timer.start('tree_search')
+            while node.expanded():
+                action, node = self.select_child(node)
+                scratch_game.take_action_by_id(action)
+                search_path.append(node)
+            # self.timer.end('tree_search')
+
+            # self.timer.start('evaluate')
+            value = self.evaluate(node, scratch_game, nnet)
+            # self.timer.end('evaluate')
+            self.backpropagate(search_path, value, scratch_game.turn)
+
+        return self.select_action(board, root), root
+    
+    def select_action(self, board: Board, root: Node) -> str:
+        visit_counts = [(child.visit_count, action)
+                        for action, child in root.children.items()]
+        
+        # if len(board.history) < self.config.num_sampling_moves:
+        #     _, action = softmax_sample(visit_counts)
+        # else:
+        _, action = max(visit_counts)
+        return action
+
+    # We use the neural network to obtain a value and policy prediction.
+    def evaluate(self, node: Node, board: Board, nnet):
+        policy_logits, value = nnet.inference(board.get_board_state_to_evaluate())
+        
+        # Expand the node.
+        node.turn = board.turn
+        possible_actions = board.get_possible_actions()
+        policy = []
+
+        for action in possible_actions:
+            i,j = action.prev
+            move_type = action.move_type
+            p = policy_logits[move_type][i][j]
+            policy.append(math.exp(p))
+
+        policy_sum = sum(policy)
+        for i, p in enumerate(policy):
+            node.children[possible_actions[i].get_unique_id()] = Node(p/policy_sum)
+        
+        return value
+    
+    # At the end of a simulation, we propagate the evaluation all the way up the
+    # tree to the root.
+    def backpropagate(self, search_path: List[Node], value: float, turn):
+        for node in search_path:
+            node.value_sum += value if node.turn == turn else (1 - value)
+            node.visit_count += 1
+
+    # At the start of each search, we add dirichlet noise to the prior of the root
+    # to encourage the search to explore new actions.
+    def add_exploration_noise(self, node: Node):
+        actions = node.children.keys()
+        noise = numpy.random.gamma(self.config.root_dirichlet_alpha, 1, len(actions))
+        frac = self.config.root_exploration_fraction
+        for a, n in zip(actions, noise):
+            node.children[a].prior = node.children[a].prior * (1 - frac) + n * frac
+
+    # Select the child with the highest UCB score.
+    def select_child(self, node: Node):
+        _, action, child = max([(self.ucb_score(node, child), action, child)
+                                for action, child in node.children.items()])
+        
+        return action, child
+    def ucb_score(self, parent: Node, child: Node):
+        pb_c = math.log((parent.visit_count + self.config.pb_c_base + 1) /
+                        self.config.pb_c_base) + self.config.pb_c_init
+        pb_c *= math.sqrt(parent.visit_count) / (child.visit_count + 1)
+
+        prior_score = pb_c * child.prior
+        value_score = child.value()
+        return prior_score + value_score

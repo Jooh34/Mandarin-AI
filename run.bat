@@ -1,0 +1,1 @@
+python janggi/run.py

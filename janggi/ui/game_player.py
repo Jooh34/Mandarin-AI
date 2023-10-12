@@ -15,12 +15,8 @@ BOARD_H = 10
 BOARD_W = 9
 class GamePlayer:
     """play a single game using GameWindow."""
-    current_move = 0
 
     def __init__(self):
-        self.current_move = 0
-        self.turn = 0 # 0 for cho, 1 for han
-
         self.han_player = AIPlayer(Camp.HAN)
 
         cho_form = random.randint(1,4)
@@ -36,10 +32,6 @@ class GamePlayer:
         self.window.render()
         pygame.event.clear()
         while True:
-            if self.turn == 1:
-                self.turn_ai()
-                continue
-
             event = pygame.event.wait()
             if event.type == QUIT:
                 self.window.close()
@@ -50,17 +42,22 @@ class GamePlayer:
                     self.window.close()
                     break
             
+            # Winner appeared
+            if self.board.winner != None:
+                continue
+            
+            if self.board.turn == Camp.HAN:
+                self.turn_ai()
+                continue
+
             if event.type == MOUSEBUTTONDOWN and event.button == 1:
                 px,py = pygame.mouse.get_pos()
                 self.on_mousebutton_down(px,py)
     
     def on_take_action(self, action):
-        self.board = self.board.take_action(action)
+        self.board.take_action(action)
 
-        self.current_move += 1
-        self.turn = self.current_move % 2
-
-        self.window.switch_board(self.current_move, self.board)
+        self.window.switch_board(self.board)
         self.window.switch_markers([])
         self.window.render()
         pass
@@ -76,7 +73,6 @@ class GamePlayer:
             for action in self.possible_actions:
                 if action.is_prev(self.selected_piece) and action.is_next((r,c)):
                     self.on_take_action(action)
-                    
                     return
 
         if Piece.is_empty(self.board.get(r,c)) or Piece.is_enemy(self.board.get(r,c)):
@@ -98,9 +94,7 @@ class GamePlayer:
         new_board = self.han_player.turn(self.board)
 
         self.board = new_board
-        self.current_move += 1
-        self.turn = self.current_move % 2
 
-        self.window.switch_board(self.current_move, self.board)
+        self.window.switch_board(self.board)
         self.window.switch_markers([])
         self.window.render()

@@ -3,26 +3,63 @@ import torch.nn as nn
 
 BOARD_H = 10
 BOARD_W = 9
-BOARD_C_IN = 3
+BOARD_C_IN = 2
 BOARD_C_OUT = 59
+
+class ProxyUniformNetwork(nn.Module):
+    def __init__(self):
+        pass
+
+    def inference(self, _board):
+        p = [[[0.5]*BOARD_C_OUT for _ in range(BOARD_W)] for _ in range(BOARD_H)]
+        v = 0.5
+        return p,v
 
 class MandarinNet(nn.Module):
     def __init__(self):
         super().__init__()
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-        self.resnet34 = ResNet34()
-        self.valuenet = ValueNet()
-        self.policynet = PolicyNet()
+        # self.resnet = ResNet50()
+        # self.value_head = ValueHead(512 * BottleNeck.expansion)
+        # self.policy_head = PolicyHead(512 * BottleNeck.expansion)
+        self.resnet = ResNet34()
+        self.value_head = ValueHead(512)
+        self.policy_head = PolicyHead(512)
+
+        self.num_steps = 0
+
+    def increase_num_steps(self):
+        self.num_steps += 1
+
+    def set_num_steps(self, num_steps):
+        self.num_steps = num_steps
+
+    def get_num_steps(self):
+        return self.num_steps
 
     def forward(self, x):
-        x = self.resnet34(x)
-        v = self.valuenet(x)
-        p = self.policynet(x)
+        x = self.resnet(x)
+        v = self.value_head(x)
+        p = self.policy_head(x)
+        return p,v
+    
+    def inference(self, _board):
+        # board : [9, 10, 2]
+        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+        input = torch.tensor(_board, dtype=torch.float).to(device)
+        input = input.unsqueeze(0) # [1,C,H,W]
+        p,v = self(input)
+        p = torch.reshape(p, (BOARD_C_OUT,BOARD_H,BOARD_W))
+        p = p.cpu().detach().numpy()
+        v = v.cpu().detach().numpy()
+
         return p,v
 
-class PolicyNet(nn.Module):
-    def __init__(self):
+
+class PolicyHead(nn.Module):
+    def __init__(self, in_channels):
         super().__init__()
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -30,17 +67,18 @@ class PolicyNet(nn.Module):
         # output : (BOARD_H, BOARD_W, BOARD_C_OUT) # => move logit probabilities
         filter_size = 64
         self.model = nn.Sequential(
-            nn.Conv2d(512, filter_size, 1, 1),
+            nn.Conv2d(in_channels, filter_size, 1, 1),
             nn.BatchNorm2d(filter_size),
             nn.ReLU(),
             nn.Conv2d(filter_size, BOARD_C_OUT, 1, 1),
+            nn.Flatten() # to apply cross-entropy
         ).to(device)
 
     def forward(self, x):
         return self.model(x)
 
-class ValueNet(nn.Module):
-    def __init__(self):
+class ValueHead(nn.Module):
+    def __init__(self, in_channels):
         super().__init__()
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -51,7 +89,7 @@ class ValueNet(nn.Module):
         filter_size = 8
 
         self.model = nn.Sequential(
-            nn.Conv2d(512, filter_size, 1, 1),
+            nn.Conv2d(in_channels, filter_size, 1, 1),
             nn.BatchNorm2d(filter_size),
             nn.ReLU(),
             nn.Flatten(),
@@ -74,10 +112,7 @@ class ResNet34(nn.Module):
         prev_channel = BOARD_C_IN
         for num_block,channel in num_blocks:
             for b in range(num_block):
-                if b == 0:
-                    layers.append(ResidualLayer(prev_channel, channel, 3, 1, False))
-                else:
-                    layers.append(ResidualLayer(prev_channel, channel, 3, 1))
+                layers.append(BasicBlock(prev_channel, channel, 3, 1))
                 
                 prev_channel = channel
 
@@ -89,14 +124,36 @@ class ResNet34(nn.Module):
     def forward(self, x):
         x = self.model(x)
         return x
-
-class ResidualLayer(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, padding_size, use_residual=True):
+    
+class ResNet50(nn.Module):
+    def __init__(self):
         super().__init__()
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-        self.use_residual = use_residual
+        layers = []
 
-        self.residual_block = nn.Sequential(
+        num_blocks = [(3,64),(4,128),(6,256),(3,512)]
+        in_channels = BOARD_C_IN
+        for num_block,channel in num_blocks:
+            for b in range(num_block):
+                layers.append(BottleNeck(in_channels, channel))
+                
+                in_channels = channel * BottleNeck.expansion
+
+
+        # input : (BOARD_H, BOARD_W, BOARD_C_IN)
+        # output : (BOARD_H ,BOARD_W, 512)
+        self.model = nn.Sequential(*layers).to(device)
+
+    def forward(self, x):
+        x = self.model(x)
+        return x
+
+class BasicBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, padding_size):
+        super().__init__()
+        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+        self.residual_function = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size, stride=1, padding=padding_size),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
@@ -104,13 +161,47 @@ class ResidualLayer(nn.Module):
             nn.BatchNorm2d(out_channels),
         ).to(device)
 
+        self.shortcut = nn.Sequential()
+        
+        if in_channels != out_channels:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, bias=False),
+                nn.BatchNorm2d(out_channels)
+            )
+
         self.relu = nn.ReLU()
 
     def forward(self, x):
-        if self.use_residual:
-            x = self.residual_block(x) + x
-        else:
-            x = self.residual_block(x)
+        x = self.residual_function(x) + self.shortcut(x)
+        x = self.relu(x)
+        return x
 
+class BottleNeck(nn.Module):
+    expansion = 4
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+
+        self.residual_function = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, bias=False),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(),
+            nn.Conv2d(out_channels, out_channels * BottleNeck.expansion, kernel_size=1, stride=1, bias=False),
+            nn.BatchNorm2d(out_channels * BottleNeck.expansion),
+        )
+        
+        self.shortcut = nn.Sequential()
+        self.relu = nn.ReLU()
+
+        if in_channels != out_channels * BottleNeck.expansion:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels*BottleNeck.expansion, kernel_size=1, stride=1, bias=False),
+                nn.BatchNorm2d(out_channels*BottleNeck.expansion)
+            )
+            
+    def forward(self, x):
+        x = self.residual_function(x) + self.shortcut(x)
         x = self.relu(x)
         return x

@@ -1,4 +1,7 @@
 from enum import IntEnum, Enum
+
+import random
+
 class Formation(Enum):
     """
         M: 마, S: 상
@@ -18,6 +21,11 @@ class Formation(Enum):
             return Formation.MSMS
         else: # s == '상마상마':
             return Formation.SMSM
+        
+    @staticmethod
+    def get_random_formation():
+        i = random.randint(1,4)
+        return Formation(i)
             
 
 class Piece(IntEnum):

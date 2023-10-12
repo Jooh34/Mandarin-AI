@@ -2,9 +2,8 @@ import pygame
 import os, pkg_resources
 from typing import List, Optional
 
-
 from core.board import Board
-from core.types import MAX_ROW, MAX_COL, Piece
+from core.types import MAX_ROW, MAX_COL, Piece, Camp
 
 WIDTH, HEIGHT = 1000, 500
 BOARD_WIDTH, BOARD_HEIGHT = 500, 500
@@ -42,6 +41,7 @@ class GameWindow:
         self.display.fill(WHITE)
         self.display.blit(self.board_img, (0, 0))
         self._draw_pieces()
+        self._draw_match_info()
 
         # Draw markers
         for marker in self.board_markers:
@@ -53,9 +53,9 @@ class GameWindow:
     def close(self):
         pygame.quit()
     
-    def switch_board(self, current_move, board):
-        self.current_move = current_move
+    def switch_board(self, board: Board):
         self.board = board
+        self.current_move = board.current_move
 
     def switch_markers(self, markers):
         self.board_markers = markers
@@ -94,3 +94,15 @@ class GameWindow:
     
     def pos_to_rowcol(self,px,py):
         return ((py-BOARD_START_H-PIECE_HEIGHT//2)//ROW_GAP, (px-BOARD_START_W-PIECE_WIDTH//2)//COL_GAP)
+
+    def _draw_match_info(self):
+        header_font = pygame.font.SysFont("malgungothic", 20, True, False)
+        content_font = pygame.font.SysFont("malgungothic", 11, False, False)
+
+        text_moves = header_font.render(f"Move : {self.board.current_move}", True, BLACK)
+        if self.board.winner != None:
+            winner_kor = '초' if self.board.winner == Camp.CHO else '한'
+            text_winner = header_font.render(f"Winner : {winner_kor}", True, BLACK)
+            self.display.blit(text_winner, (600, 100))
+
+        self.display.blit(text_moves, (600, 150))
