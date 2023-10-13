@@ -79,22 +79,17 @@ class MCTS:
 
         for _ in range(self.config.num_simulations):
             node = root
-            # self.timer.start('deepcopy')
             scratch_game = deepcopy(board)
-            # self.timer.end('deepcopy')
             search_path = [node]
 
-            # self.timer.start('tree_search')
             while node.expanded():
                 action, node = self.select_child(node)
                 scratch_game.take_action_by_id(action)
                 search_path.append(node)
-            # self.timer.end('tree_search')
 
-            # self.timer.start('evaluate')
             value = self.evaluate(node, scratch_game, nnet)
-            # self.timer.end('evaluate')
             self.backpropagate(search_path, value, scratch_game.turn)
+
 
         return self.select_action(board, root), root
     
@@ -114,7 +109,7 @@ class MCTS:
         
         # Expand the node.
         node.turn = board.turn
-        possible_actions = board.get_possible_actions()
+        possible_actions = board.get_possible_actions(board.turn)
         policy = []
 
         for action in possible_actions:

@@ -1,15 +1,13 @@
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.utils.data as data
-import os
 import time
-from copy import deepcopy
 from collections import deque
+from tqdm import tqdm
 
 from core.board import Board, Formation
 from ai.mcts import MCTS
-from ai.mandarin_net import MandarinNet, ProxyUniformNetwork
+from ai.file_manager import FileManager
 from ai.config import AlphaZeroConfig
 from core.move import Action
 from core.types import Camp
@@ -18,60 +16,7 @@ BOARD_H = 10
 BOARD_W = 9
 BOARD_MOVE_MODAL = 59
 
-class SharedStorage(object):
-    def __init__(self, checkpoint_folder='checkpoint'):
-        self.nnet = None
-        abs_path = os.path.dirname(__file__)
-        self.checkpoint_folder = os.path.join(abs_path, checkpoint_folder)
 
-    def latest_network(self):
-        lst = os.listdir(self.checkpoint_folder)
-        candidate = []
-        for file_name in lst:
-            ext = file_name.split('.')[-1]
-            if ext == 'pt':
-                candidate.append(file_name)
-
-        if candidate:
-            mx = -1
-            mx_name = ''
-            for candi in candidate:
-                num = int(candi.split('.')[0].split('_')[-1])
-                if num > mx:
-                    mx_name = candi
-                    mx = num
-
-            self.load_checkpoint(self.checkpoint_folder, mx_name)
-            self.nnet.set_num_steps(mx)
-
-            print(f'num_step-{mx} checkpoint successfully loaded')
-
-            return self.nnet
-        else:
-            # return ProxyUniformNetwork()  # policy -> uniform, value -> 0.5
-            self.nnet = MandarinNet()
-            return self.nnet
-
-    def save_checkpoint(self):
-        filename = f'mandarin_{self.nnet.num_steps}'
-
-        # change extension
-        if not os.path.exists(self.checkpoint_folder):
-            print("Checkpoint Directory does not exist! Making directory {}".format(self.checkpoint_folder))
-            os.mkdir(self.checkpoint_folder)
-
-        filename = f'mandarin_{self.nnet.num_steps}' + ".pt"
-        filepath = os.path.join(self.checkpoint_folder, filename)
-        torch.save(self.nnet, filepath)
-
-    def load_checkpoint(self, folder='checkpoint', filename='mandarin'):
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-
-        filepath = os.path.join(folder, filename)
-        if not os.path.exists(filepath):
-            raise("No model in path {}".format(filepath))
-        
-        self.nnet = torch.load(filepath, map_location=device)
 
 class ReplayBuffer(object):
     def __init__(self, config: AlphaZeroConfig):
@@ -117,54 +62,64 @@ class Trainer:
         self.pi_list = []
     
     def train(self):
-        storage = SharedStorage()
+        file_manager = FileManager()
         replay_buffer = ReplayBuffer(self.config)
-        self.nnet = storage.latest_network()
+        self.nnet = file_manager.latest_network()
 
         for i in range(self.config.n_games_to_train):
-            self.run_selfplay(replay_buffer, storage)
-            print(f'{i}-th game playing')
+            print(f'{i+1}-th game playing')
+            self.selfplay_game(self.nnet, replay_buffer, file_manager, True if i==0 else False)
 
-        self.train_network(replay_buffer, storage)
+        self.train_network(replay_buffer, file_manager)
 
-    def run_selfplay(self, replay_buffer: ReplayBuffer, storage: SharedStorage):
-        self.play_game(self.nnet, replay_buffer)
-
-    def play_game(self, nnet, replay_buffer: ReplayBuffer):
+    def selfplay_game(self, nnet, replay_buffer: ReplayBuffer, file_manager: FileManager, save_replay=False):
         han_formation = Formation.get_random_formation()
         cho_formation = Formation.get_random_formation()
         board = Board(cho_formation, han_formation)
 
-        while not board.is_terminal() and len(replay_buffer.board_history) < self.config.max_moves:
-            replay_buffer.append_board_history(board.get_board_state_to_evaluate())
+        board_history = []
+        pi_list = []
+        if save_replay:
+            action_history = []
+        while not board.is_terminal() and len(board_history) < self.config.max_moves:
+            board_history.append(board.get_board_state_to_evaluate())
 
             # do mcts and take action
             action_id, root = self.mcts.run_mcts(board, nnet)
+            if save_replay:
+                gibo_str = Action.init_by_id(action_id).to_gibo_str(turn=board.turn)
+                action_history.append(gibo_str)
+
             board.take_action_by_id(action_id)
 
+            # save data for training
             pi = self.get_search_statistics(root)
-            replay_buffer.append_pi_list(pi)
-
-            self.mcts.show_timer(reset=True)
+            pi_list.append(pi)
         
-        # add reward
-        for i in range(len(replay_buffer.board_history)):
+        if save_replay:
+            file_manager.save_replay(action_history, nnet.num_steps, self.config.num_simulations, cho_formation, han_formation)
+
+        # add to replay buffer
+        for i in range(len(board_history)):
             if i % 2 == 0: # CHO reward
                 replay_buffer.append_reward_list(board.get_terminal_value(Camp.CHO))
             else:
                 replay_buffer.append_reward_list(board.get_terminal_value(Camp.HAN))
 
-        print(f'play_game terminated. {len(replay_buffer.board_history)} moves, winner : {board.winner}')
+            replay_buffer.append_board_history(board_history[i])
+            replay_buffer.append_pi_list(pi_list[i])
 
-    def train_network(self, replay_buffer: ReplayBuffer, storage: SharedStorage):
+        print(f'play_game terminated. {len(board_history)} moves, winner : {board.winner}')
+
+    def train_network(self, replay_buffer: ReplayBuffer, file_manager: FileManager):
         nnet = self.nnet
         optimizer = torch.optim.Adam(nnet.parameters(), lr=2e-1, weight_decay=self.config.weight_decay) # temp
 
         train_start = time.time()
         print(f'training network.. step to train is {self.config.training_steps}')
-        for i in range(self.config.training_steps):
+        for i in tqdm(range(self.config.training_steps)):
             if i % self.config.checkpoint_interval == 0:
-                storage.save_checkpoint()
+                file_manager.save_checkpoint()
             
             batch = replay_buffer.sample_batch()
             self.update_weights(optimizer, nnet, batch)
@@ -172,7 +127,7 @@ class Trainer:
 
         elapsed = time.time()-train_start
         print(f'finished training network. elapsed {elapsed} seconds')
-        storage.save_checkpoint()
+        file_manager.save_checkpoint()
     
     def update_weights(self, optimizer, nnet, batch):
         mse_loss = nn.MSELoss()

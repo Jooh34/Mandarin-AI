@@ -43,7 +43,6 @@ class ReplayViewer:
         if self.current_move < len(self.gibo.board_history)-1:
             self.current_move += 1
             board = self.gibo.board_history[self.current_move]
-            actions = board.get_possible_actions()
 
             self.window.switch_board(self.current_move, board)
             self.window.render()

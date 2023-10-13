@@ -2,6 +2,8 @@ from enum import IntEnum, Enum
 
 import random
 
+BOARD_H = 10
+BOARD_W = 9
 class Formation(Enum):
     """
         M: 마, S: 상
@@ -21,6 +23,17 @@ class Formation(Enum):
             return Formation.MSMS
         else: # s == '상마상마':
             return Formation.SMSM
+        
+    @staticmethod
+    def formatiopn_to_str(f):
+        if f == Formation.MSSM:
+            return '마상상마'
+        elif f == Formation.SMMS:
+            return '상마마상'
+        elif f == Formation.MSMS:
+            return '마상마상'
+        else: # f == Formation.SMSM:
+            return '상마상마'
         
     @staticmethod
     def get_random_formation():

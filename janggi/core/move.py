@@ -1,4 +1,4 @@
-from core.types import Piece, Util, MoveType
+from core.types import Piece, Util, MoveType, Camp, BOARD_H, BOARD_W
 
 class Action:
     def __init__(self, prev, next, piece, move_type):
@@ -16,6 +16,16 @@ class Action:
         prev = (px,py)
         next = (nx,ny)
         return Action(prev, next, piece, move_type)
+
+    def to_gibo_str(self, turn):
+        _prev = (self.prev[0], self.prev[1])
+        _next = (self.next[0], self.next[1])
+        if turn == Camp.HAN:
+            _prev = (BOARD_H-1-self.prev[0], BOARD_W-1-self.prev[1])
+            _next = (BOARD_H-1-self.next[0], BOARD_W-1-self.next[1])
+
+        # index -> gibo index
+        return f'{(_prev[0]+1)%10}{_prev[1]+1}{Util.piece_to_kor(self.piece)}{(_next[0]+1)%10}{_next[1]+1}'
     
     def get_unique_id(self):
         return f'{self.prev[0]} {self.prev[1]} {self.next[0]} {self.next[1]} {self.piece} {self.move_type}'

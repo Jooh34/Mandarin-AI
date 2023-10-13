@@ -22,7 +22,6 @@ class GamePlayer:
         cho_form = random.randint(1,4)
         han_form = random.randint(1,4)
         self.board = Board(cho_form, han_form)
-        self.possible_actions = Move.get_possible_actions(self.board._board)
 
         self.window = GameWindow(self.board)
 
@@ -67,10 +66,10 @@ class GamePlayer:
         if not (0 <= r <= BOARD_H and 0 <= c <= BOARD_W):
             return
 
-        self.possible_actions = Move.get_possible_actions(self.board._board)
+        possible_actions = Move.get_possible_actions(self.board._board)
 
         if self.selected_piece:
-            for action in self.possible_actions:
+            for action in possible_actions:
                 if action.is_prev(self.selected_piece) and action.is_next((r,c)):
                     self.on_take_action(action)
                     return
@@ -83,7 +82,7 @@ class GamePlayer:
         self.selected_piece = (r,c)
         markers.append(BoardMarker(MarkerType.SELECT, r, c))
 
-        for action in self.possible_actions:
+        for action in possible_actions:
             if action.is_prev(self.selected_piece):
                 markers.append(BoardMarker(MarkerType.NEXT_ACTION, action.next[0], action.next[1]))
         

@@ -1,4 +1,5 @@
 import re
+from collections import defaultdict
 
 from core.board import Board
 from core.types import Piece, MAX_ROW, MAX_COL, Camp, Formation
@@ -24,7 +25,7 @@ class Gibo:
 
     @staticmethod
     def make_gibo_with_gib(file_path):
-        match_info = {}
+        match_info = defaultdict(str)
         move_history = []
 
         with open(file_path, encoding='euc-kr') as f:

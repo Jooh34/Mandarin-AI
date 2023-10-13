@@ -125,10 +125,20 @@ class Board:
         turn = Camp.CHO if (state_index % 2) == 0 else Camp.HAN
         return (self.pi_list[state_index], self.get_terminal_value(turn))
 
-    def get_possible_actions(self):
-        return Move.get_possible_actions(self._board)
+    def get_possible_actions(self, turn: Camp):
+        if turn == Camp.CHO:
+            return Move.get_possible_actions(self._board)
+        else: # HAN
+            self.rotate_and_reverse()
+            actions = Move.get_possible_actions(self._board)
+            self.rotate_and_reverse()
+            return actions
     
     def take_action(self, action: Action):
+        turn_HAN = self.turn == Camp.HAN
+        if turn_HAN:
+            self.rotate_and_reverse()
+
         # judge winner
         ni, nj = action.next
         if self._board[ni][nj] == Piece.CHO_GOONG or self._board[ni][nj] == Piece.HAN_GOONG:
@@ -140,6 +150,9 @@ class Board:
 
         self.set(*action.prev, 0)
         self.set(*action.next, action.piece)
+
+        if turn_HAN:
+            self.rotate_and_reverse()
 
     def take_action_by_id(self, action_id: str):
         action = Action.init_by_id(action_id)
