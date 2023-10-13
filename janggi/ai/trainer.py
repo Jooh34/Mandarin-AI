@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.utils.data as data
 import os
+import time
 from copy import deepcopy
 from collections import deque
 
@@ -28,10 +29,9 @@ class SharedStorage(object):
         candidate = []
         for file_name in lst:
             ext = file_name.split('.')[-1]
-            if ext == '.pt':
+            if ext == 'pt':
                 candidate.append(file_name)
 
-        print(candidate)
         if candidate:
             mx = -1
             mx_name = ''
@@ -44,21 +44,23 @@ class SharedStorage(object):
             self.load_checkpoint(self.checkpoint_folder, mx_name)
             self.nnet.set_num_steps(mx)
 
+            print(f'num_step-{mx} checkpoint successfully loaded')
+
             return self.nnet
         else:
             # return ProxyUniformNetwork()  # policy -> uniform, value -> 0.5
             self.nnet = MandarinNet()
             return self.nnet
 
-    def save_checkpoint(self, num_steps):
-        filename = f'mandarin_{num_steps}'
+    def save_checkpoint(self):
+        filename = f'mandarin_{self.nnet.num_steps}'
 
         # change extension
         if not os.path.exists(self.checkpoint_folder):
             print("Checkpoint Directory does not exist! Making directory {}".format(self.checkpoint_folder))
             os.mkdir(self.checkpoint_folder)
 
-        filename = f'mandarin_{num_steps}' + ".pt"
+        filename = f'mandarin_{self.nnet.num_steps}' + ".pt"
         filepath = os.path.join(self.checkpoint_folder, filename)
         torch.save(self.nnet, filepath)
 
@@ -80,9 +82,6 @@ class ReplayBuffer(object):
         self.board_history = deque([])
         self.pi_list = deque([])
         self.reward_list = deque([])
-
-        # real replay buffer
-        self.buffer = deque([])
     
     def append_board_history(self, bh):
         if len(self.board_history) >= self.window_size:
@@ -101,28 +100,14 @@ class ReplayBuffer(object):
 
     def sample_batch(self):
         # Sample uniformly
-        length = len(self.buffer)
-        idx_list = np.random.randint(length, size=self.batch_size)
-        print(idx_list)
+        length = len(self.board_history)
 
-        return [self.buffer[i] for i in idx_list]
-    
-class ReplayDataset(data.Dataset):
-    def __init__(self, replay_buffer: ReplayBuffer):
-        super(ReplayDataset, self).__init__()
+        np_bh = np.array(self.board_history)
+        np_pi_list = np.array(self.pi_list)
+        np_reward_list = np.array(self.reward_list)
 
-        self.board_history = replay_buffer.board_history
-        self.pi_list = replay_buffer.pi_list
-        self.reward_list = replay_buffer.reward_list
-        
-    def __getitem__(self, index):
-        x = torch.as_tensor(self.board_history[index], dtype=torch.float)
-        y = torch.as_tensor(self.pi_list[index], dtype=torch.float)
-        z = torch.as_tensor([self.reward_list[index]], dtype=torch.float)
-        return x,y,z
-
-    def __len__(self):
-        return len(self.pi_list)
+        rd_idx_list = [np.random.randint(length) for _ in range(self.batch_size)]
+        return np_bh[rd_idx_list, :, :, :], np_pi_list[rd_idx_list, :, :, :], np_reward_list[rd_idx_list].reshape((self.batch_size, 1))
 
 class Trainer:
     def __init__(self):
@@ -138,7 +123,7 @@ class Trainer:
 
         for i in range(self.config.n_games_to_train):
             self.run_selfplay(replay_buffer, storage)
-            print(f'{i}-th game played')
+            print(f'{i}-th game playing')
 
         self.train_network(replay_buffer, storage)
 
@@ -169,39 +154,43 @@ class Trainer:
             else:
                 replay_buffer.append_reward_list(board.get_terminal_value(Camp.HAN))
 
-        nnet.increase_num_steps()
         print(f'play_game terminated. {len(replay_buffer.board_history)} moves, winner : {board.winner}')
 
     def train_network(self, replay_buffer: ReplayBuffer, storage: SharedStorage):
         nnet = self.nnet
         optimizer = torch.optim.Adam(nnet.parameters(), lr=2e-1, weight_decay=self.config.weight_decay) # temp
-        rds = ReplayDataset(replay_buffer)
-        rdl = data.DataLoader(dataset=rds, batch_size=self.config.batch_size, num_workers=8, shuffle=True)
 
+        train_start = time.time()
+        print(f'training network.. step to train is {self.config.training_steps}')
         for i in range(self.config.training_steps):
             if i % self.config.checkpoint_interval == 0:
-                storage.save_checkpoint(i)
+                storage.save_checkpoint()
             
-            self.update_weights(optimizer, nnet, rdl)
+            batch = replay_buffer.sample_batch()
+            self.update_weights(optimizer, nnet, batch)
+            nnet.increase_num_steps()
 
-        storage.save_checkpoint(self.config.training_steps)
+        elapsed = time.time()-train_start
+        print(f'finished training network. elapsed {elapsed} seconds')
+        storage.save_checkpoint()
     
-    def update_weights(self, optimizer, nnet, rdl):
+    def update_weights(self, optimizer, nnet, batch):
         mse_loss = nn.MSELoss()
-        for image, target_policy, target_value in rdl:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            image = image.to(device)
-            target_policy = target_policy.flatten(start_dim=1).to(device)
-            target_value = target_value.to(device)
+        
+        image, target_policy, target_value = batch
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        image = torch.Tensor(image).to(device)
+        target_policy = torch.Tensor(target_policy).flatten(start_dim=1).to(device)
+        target_value = torch.Tensor(target_value).to(device)
 
-            policy_logits, value = nnet(image)
-            loss = (
-                mse_loss(value, target_value) +
-                nn.functional.cross_entropy(policy_logits, target_policy)
-            )
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+        policy_logits, value = nnet(image)
+        loss = (
+            mse_loss(value, target_value) +
+            nn.functional.cross_entropy(policy_logits, target_policy)
+        )
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
     
     def get_search_statistics(self, root):
