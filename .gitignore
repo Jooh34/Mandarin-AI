@@ -12,5 +12,8 @@ build/
 develop-eggs/
 dist/
 
-# custom
-janggi/ai/checkpoint/
+# training data
+data/checkpoint/
+data/replay/
+data/replay_buffer/
+data/human_gibo

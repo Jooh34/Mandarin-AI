@@ -28,6 +28,14 @@ class ReplayBuffer(object):
         self.pi_list = deque([])
         self.reward_list = deque([])
     
+    def load_from_pickle(self, data):
+        if data.get('board_history'):
+            self.board_history = deque(data['board_history'])
+        if data.get('pi_list'):
+            self.pi_list = deque(data['pi_list'])
+        if data.get('reward_list'):
+            self.reward_list = deque(data['reward_list'])
+
     def append_board_history(self, bh):
         if len(self.board_history) >= self.window_size:
             self.board_history.popleft()
@@ -64,7 +72,7 @@ class Trainer:
     def train(self):
         file_manager = FileManager()
         replay_buffer = ReplayBuffer(self.config)
-        self.nnet = file_manager.latest_network()
+        self.nnet = file_manager.latest_network(replay_buffer)
 
         for i in range(self.config.n_games_to_train):
             print(f'{i+1}-th game playing')
@@ -118,8 +126,9 @@ class Trainer:
         train_start = time.time()
         print(f'training network.. step to train is {self.config.training_steps}')
         for i in tqdm(range(self.config.training_steps)):
-            if i % self.config.checkpoint_interval == 0:
+            if i != 0 and i % self.config.checkpoint_interval == 0:
                 file_manager.save_checkpoint()
+                file_manager.save_replay_buffer(replay_buffer)
             
             batch = replay_buffer.sample_batch()
             self.update_weights(optimizer, nnet, batch)
@@ -128,6 +137,8 @@ class Trainer:
         elapsed = time.time()-train_start
         print(f'finished training network. elapsed {elapsed} seconds')
         file_manager.save_checkpoint()
+        file_manager.save_replay_buffer(replay_buffer)
+        
     
     def update_weights(self, optimizer, nnet, batch):
         mse_loss = nn.MSELoss()
