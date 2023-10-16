@@ -16,8 +16,6 @@ BOARD_H = 10
 BOARD_W = 9
 BOARD_MOVE_MODAL = 59
 
-
-
 class ReplayBuffer(object):
     def __init__(self, config: AlphaZeroConfig):
         self.window_size = config.window_size
@@ -74,11 +72,15 @@ class Trainer:
         replay_buffer = ReplayBuffer(self.config)
         self.nnet = file_manager.latest_network(replay_buffer)
 
-        for i in range(self.config.n_games_to_train):
-            print(f'{i+1}-th game playing')
-            self.selfplay_game(self.nnet, replay_buffer, file_manager, True if i==0 else False)
+        epoch = 1
+        while True:
+            print(f'epoch : {epoch}')
+            for i in range(self.config.n_games_to_train):
+                print(f'{i+1}-th game playing')
+                self.selfplay_game(self.nnet, replay_buffer, file_manager, True if i==0 else False)
 
-        self.train_network(replay_buffer, file_manager)
+            self.train_network(replay_buffer, file_manager)
+            epoch+=1
 
     def selfplay_game(self, nnet, replay_buffer: ReplayBuffer, file_manager: FileManager, save_replay=False):
         han_formation = Formation.get_random_formation()
@@ -124,9 +126,12 @@ class Trainer:
         optimizer = torch.optim.Adam(nnet.parameters(), lr=2e-1, weight_decay=self.config.weight_decay) # temp
 
         train_start = time.time()
-        print(f'training network.. step to train is {self.config.training_steps}')
-        for i in tqdm(range(self.config.training_steps)):
-            if i != 0 and i % self.config.checkpoint_interval == 0:
+        # prevent overfitting when replay_buffer small
+        _training_step = min(self.config.training_steps, (len(replay_buffer.board_history) // self.config.batch_size + 1)*7)
+        
+        print(f'training network.. step to train is {_training_step}')
+        for i in tqdm(range(_training_step)):
+            if i % self.config.checkpoint_interval == 0:
                 file_manager.save_checkpoint()
                 file_manager.save_replay_buffer(replay_buffer)
             

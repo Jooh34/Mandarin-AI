@@ -17,9 +17,9 @@ class AlphaZeroConfig(object):
         self.pb_c_init = 1.25
 
         self.weight_decay = 1e-4
-        if MODE == 0:
+        if MODE == 0: # 10 hour plan
             # self.n_games_to_train = 2000
-            self.n_games_to_train = 300
+            self.n_games_to_train = 200
 
             self.num_simulations = 50
 
@@ -29,14 +29,14 @@ class AlphaZeroConfig(object):
             self.window_size = int(1e6)
             self.batch_size = 1024
 
-        elif MODE == 1:
-            self.n_games_to_train = 30
+        elif MODE == 1: # 2 hour plan
+            self.n_games_to_train = 50
             self.num_simulations = 50
 
             ### Training
             self.training_steps = int(7e2)
             self.checkpoint_interval = int(1e2)
-            self.window_size = int(1e5)
+            self.window_size = int(1e6)
             self.batch_size = 1024
 
         else:
@@ -46,5 +46,5 @@ class AlphaZeroConfig(object):
             ### Training
             self.training_steps = int(2)
             self.checkpoint_interval = int(1)
-            self.window_size = int(1e3)
+            self.window_size = int(1e6)
             self.batch_size = 1024
