@@ -1,6 +1,6 @@
 from copy import deepcopy
 
-from core.types import Formation, Piece, Camp
+from core.types import Formation, Piece, Camp, Util
 from core.move import Move, Action
 
 
@@ -153,6 +153,19 @@ class Board:
 
         if turn_HAN:
             self.rotate_and_reverse()
+
+        # judge winner if current_move >= 200
+        if self.current_move >= 50:
+            _sum = 0
+            for i in range(BOARD_H):
+                for j in range(BOARD_W):
+                    if self._board[i][j] != 0:
+                        _sum += Util.piece_to_value(self._board[i][j])
+            
+            if _sum < 1.5: # Dum
+                self.set_winner(Camp.HAN)
+            else:
+                self.set_winner(Camp.CHO)
 
     def take_action_by_id(self, action_id: str):
         action = Action.init_by_id(action_id)

@@ -15,6 +15,7 @@ class Node:
         self.prior = prior
         self.visit_count = 0
         self.value_sum = 0
+        self.is_terminal = False
 
         self.turn = -1
         self.children = {}
@@ -82,9 +83,10 @@ class MCTS:
             scratch_game = deepcopy(board)
             search_path = [node]
 
-            while node.expanded():
+            while node.expanded() and not node.is_terminal:
                 action, node = self.select_child(node)
                 scratch_game.take_action_by_id(action)
+                node.is_terminal = scratch_game.is_terminal()
                 search_path.append(node)
 
             value = self.evaluate(node, scratch_game, nnet)

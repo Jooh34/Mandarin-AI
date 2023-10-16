@@ -145,3 +145,24 @@ class Util:
     @staticmethod
     def make_dir(move_type):
         return Util.move_table[move_type]
+    
+    piece_to_value_table = {
+        1: 2, # ZOL
+        2: 3, # SANG
+        3: 3, # SA
+        4: 5, # MA
+        5: 7, # PO
+        6: 13, # CHA
+        7: 100, # GOONG
+        -1: -2, # ZOL
+        -2: -3, # SANG
+        -3: -3, # SA
+        -4: -5, # MA
+        -5: -7, # PO
+        -6: -13, # CHA
+        -7: -100, # GOONG
+    }
+
+    @staticmethod
+    def piece_to_value(piece):
+        return Util.piece_to_value_table[piece]
