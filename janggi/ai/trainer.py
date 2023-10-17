@@ -127,7 +127,7 @@ class Trainer:
 
         train_start = time.time()
         # prevent overfitting when replay_buffer small
-        _training_step = min(self.config.training_steps, (len(replay_buffer.board_history) // self.config.batch_size + 1)*7)
+        _training_step = min(self.config.training_steps, (len(replay_buffer.board_history) // self.config.batch_size + 1))
         
         print(f'training network.. step to train is {_training_step}')
         for i in tqdm(range(_training_step)):
