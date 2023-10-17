@@ -154,8 +154,8 @@ class Board:
         if turn_HAN:
             self.rotate_and_reverse()
 
-        # judge winner if current_move >= 200
-        if self.current_move >= 50:
+        # judge winner if current_move == 200
+        if self.current_move == 200 and self.winner == None:
             _sum = 0
             for i in range(BOARD_H):
                 for j in range(BOARD_W):
