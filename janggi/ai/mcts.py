@@ -15,7 +15,7 @@ class Node:
         self.prior = prior
         self.visit_count = 0
         self.value_sum = 0
-        self.is_terminal = False
+        self.winner = None
 
         self.turn = -1
         self.children = {}
@@ -27,6 +27,9 @@ class Node:
         if self.visit_count == 0:
             return 0
         return self.value_sum / self.visit_count
+
+    def is_terminal(self):
+        return self.winner != None
 
     def __str__(self):
         s=[]
@@ -75,6 +78,7 @@ class MCTS:
 
     def run_mcts(self, board: Board, nnet):
         root = Node(0)
+        root_turn = board.turn
         self.evaluate(root, board, nnet)
         self.add_exploration_noise(root)
 
@@ -83,14 +87,20 @@ class MCTS:
             scratch_game = deepcopy(board)
             search_path = [node]
 
-            while node.expanded() and not node.is_terminal:
+            while node.expanded() and not node.is_terminal():
                 action, node = self.select_child(node)
                 scratch_game.take_action_by_id(action)
-                node.is_terminal = scratch_game.is_terminal()
+                node.winner = scratch_game.winner
                 search_path.append(node)
 
+            if node.is_terminal():
+                if node.winner == node.turn:
+                    self.backpropagate(search_path, 100, root_turn)
+                else:
+                    self.backpropagate(search_path, -100, root_turn)
+
             value = self.evaluate(node, scratch_game, nnet)
-            self.backpropagate(search_path, value, scratch_game.turn)
+            self.backpropagate(search_path, value, root_turn)
 
 
         return self.select_action(board, root), root

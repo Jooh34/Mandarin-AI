@@ -37,17 +37,17 @@ class ReplayBuffer(object):
     def append_board_history(self, bh):
         if len(self.board_history) >= self.window_size:
             self.board_history.popleft()
-        self.board_history.appendleft(bh)
+        self.board_history.append(bh)
     
     def append_pi_list(self, pi):
         if len(self.pi_list) >= self.window_size:
             self.pi_list.popleft()
-        self.pi_list.appendleft(pi)
+        self.pi_list.append(pi)
     
     def append_reward_list(self, r):
         if len(self.reward_list) >= self.window_size:
             self.reward_list.popleft()
-        self.reward_list.appendleft(r)
+        self.reward_list.append(r)
 
     def sample_batch(self):
         # Sample uniformly
@@ -120,7 +120,7 @@ class Trainer:
                 rw = board.get_terminal_value(Camp.HAN) * 10
             
             discounted_rw = self.get_discounted_reward(rev_i, rw)
-
+            
             replay_buffer.append_reward_list(discounted_rw)
             replay_buffer.append_board_history(board_history[i])
             replay_buffer.append_pi_list(pi_list[i])
@@ -133,13 +133,13 @@ class Trainer:
 
         train_start = time.time()
         # prevent overfitting when replay_buffer small
-        _training_step = min(self.config.training_steps, int(len(replay_buffer.board_history)*0.7 // self.config.batch_size))
+        _training_step = min(self.config.training_steps, int(len(replay_buffer.board_history)*0.3 // self.config.batch_size))
         
         print(f'training network.. step to train is {_training_step}')
+        file_manager.save_replay_buffer(replay_buffer)
         for i in tqdm(range(_training_step)):
             if i % self.config.checkpoint_interval == 0:
                 file_manager.save_checkpoint()
-                file_manager.save_replay_buffer(replay_buffer)
             
             batch = replay_buffer.sample_batch()
             self.update_weights(optimizer, nnet, batch)
@@ -148,7 +148,6 @@ class Trainer:
         elapsed = time.time()-train_start
         print(f'finished training network. elapsed {elapsed} seconds')
         file_manager.save_checkpoint()
-        file_manager.save_replay_buffer(replay_buffer)
         
     
     def update_weights(self, optimizer, nnet, batch):

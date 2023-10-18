@@ -39,9 +39,9 @@ class AlphaZeroConfig(object):
             self.num_simulations = 50
 
             ### Training
-            self.training_steps = int(7e2)
-            self.checkpoint_interval = int(1e2)
-            self.window_size = int(1e6)
+            self.training_steps = int(1e2)
+            self.checkpoint_interval = int(50)
+            self.window_size = int(1e5)
             self.batch_size = 1024
 
         else:
