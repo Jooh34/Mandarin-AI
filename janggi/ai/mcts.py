@@ -130,7 +130,7 @@ class MCTS:
     # tree to the root.
     def backpropagate(self, search_path: List[Node], value: float, turn):
         for node in search_path:
-            node.value_sum += value if node.turn == turn else (1 - value)
+            node.value_sum += value if node.turn == turn else -value
             node.visit_count += 1
 
     # At the start of each search, we add dirichlet noise to the prior of the root

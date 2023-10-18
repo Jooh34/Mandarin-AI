@@ -91,8 +91,13 @@ class FileManager(object):
     def save_replay(self, action_history, num_steps, num_simulations, cho_formation: Formation, han_formation: Formation):
         file_name = f'replay_{num_steps}_sim{num_simulations}.gib'
         filepath = os.path.join(self.replay_folder, file_name)
+        cnt = 1
+        while os.path.exists(filepath):
+            file_name = f'replay_{num_steps}_sim{num_simulations}_v{cnt}.gib'
+            filepath = os.path.join(self.replay_folder, file_name)
+            cnt+=1
+            
         per_row = 6
-        
         with open(filepath, "w", encoding='euc-kr') as f:
             f.write(f'[초차림 "{Formation.formatiopn_to_str(cho_formation)}"]\n')
             f.write(f'[한차림 "{Formation.formatiopn_to_str(han_formation)}"]\n')

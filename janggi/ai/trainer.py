@@ -77,7 +77,7 @@ class Trainer:
             print(f'epoch : {epoch}')
             for i in range(self.config.n_games_to_train):
                 print(f'{i+1}-th game playing')
-                self.selfplay_game(self.nnet, replay_buffer, file_manager, True if i==0 else False)
+                self.selfplay_game(self.nnet, replay_buffer, file_manager, True if i<5 else False)
 
             self.train_network(replay_buffer, file_manager)
             epoch+=1
@@ -111,11 +111,17 @@ class Trainer:
 
         # add to replay buffer
         for i in range(len(board_history)):
-            if i % 2 == 0: # CHO reward
-                replay_buffer.append_reward_list(board.get_terminal_value(Camp.CHO))
-            else:
-                replay_buffer.append_reward_list(board.get_terminal_value(Camp.HAN))
+            rev_i = len(board_history)-i
 
+            rw = 0
+            if i % 2 == 0: # CHO reward
+                rw = board.get_terminal_value(Camp.CHO) * 10
+            else:
+                rw = board.get_terminal_value(Camp.HAN) * 10
+            
+            discounted_rw = self.get_discounted_reward(rev_i, rw)
+
+            replay_buffer.append_reward_list(discounted_rw)
             replay_buffer.append_board_history(board_history[i])
             replay_buffer.append_pi_list(pi_list[i])
 
@@ -127,7 +133,7 @@ class Trainer:
 
         train_start = time.time()
         # prevent overfitting when replay_buffer small
-        _training_step = min(self.config.training_steps, (len(replay_buffer.board_history) // self.config.batch_size + 1))
+        _training_step = min(self.config.training_steps, int(len(replay_buffer.board_history)*0.7 // self.config.batch_size))
         
         print(f'training network.. step to train is {_training_step}')
         for i in tqdm(range(_training_step)):
@@ -173,3 +179,16 @@ class Trainer:
             move_modality[action.prev[0]][action.prev[1]][action.move_type] = child.visit_count / sum_visits
 
         return move_modality
+
+    def get_discounted_reward(self, num_step, reward):
+        df = self.config.discount_factor
+        if df >= 1:
+            return reward
+        else:
+            partial = 1
+            if num_step >= 10:
+                partial = df**10
+            else:
+                partial = df**num_step
+            
+            return reward * partial
