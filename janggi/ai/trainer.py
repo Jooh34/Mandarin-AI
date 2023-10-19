@@ -129,7 +129,10 @@ class Trainer:
 
     def train_network(self, replay_buffer: ReplayBuffer, file_manager: FileManager):
         nnet = self.nnet
-        optimizer = torch.optim.Adam(nnet.parameters(), lr=2e-1, weight_decay=self.config.weight_decay) # temp
+        optimizer = torch.optim.Adam(nnet.parameters(), lr=1e-1, weight_decay=self.config.weight_decay) # temp
+        scheduler = torch.optim.lr_scheduler.CyclicLR(
+            optimizer, base_lr=0.001, max_lr=0.1, step_size_up=10, step_size_down=15, mode='triangular')
+        
 
         train_start = time.time()
         # prevent overfitting when replay_buffer small
@@ -144,6 +147,7 @@ class Trainer:
             batch = replay_buffer.sample_batch()
             self.update_weights(optimizer, nnet, batch)
             nnet.increase_num_steps()
+            scheduler.step()
 
         elapsed = time.time()-train_start
         print(f'finished training network. elapsed {elapsed} seconds')

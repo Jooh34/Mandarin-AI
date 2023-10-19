@@ -23,9 +23,12 @@ class MandarinNet(nn.Module):
         # self.resnet = ResNet50()
         # self.value_head = ValueHead(512 * BottleNeck.expansion)
         # self.policy_head = PolicyHead(512 * BottleNeck.expansion)
-        self.resnet = ResNet34()
-        self.value_head = ValueHead(512)
-        self.policy_head = PolicyHead(512)
+        # self.resnet = ResNet34()
+        # self.value_head = ValueHead(512)
+        # self.policy_head = PolicyHead(512)
+        self.resnet = ResNet18()
+        self.value_head = ValueHead(64)
+        self.policy_head = PolicyHead(64)
 
         self.num_steps = 0
 
@@ -102,6 +105,29 @@ class ValueHead(nn.Module):
     def forward(self, x):
         return self.model(x)
 
+class ResNet18(nn.Module):
+    def __init__(self):
+        super().__init__()
+        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        layers = []
+
+        num_blocks = [(2,16),(4,32),(4,64)]
+        prev_channel = BOARD_C_IN
+        for num_block,channel in num_blocks:
+            for b in range(num_block):
+                layers.append(BasicBlock(prev_channel, channel, 3, 1))
+                
+                prev_channel = channel
+
+
+        # input : (BOARD_H, BOARD_W, BOARD_C_IN)
+        # output : (BOARD_H ,BOARD_W, 64)
+        self.model = nn.Sequential(*layers).to(device)
+
+    def forward(self, x):
+        x = self.model(x)
+        return x
+    
 class ResNet34(nn.Module):
     def __init__(self):
         super().__init__()
