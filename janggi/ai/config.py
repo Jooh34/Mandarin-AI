@@ -5,7 +5,7 @@ MODE = 1
 
 class AlphaZeroConfig(object):
     def __init__(self):
-        self.max_moves = 200
+        self.max_moves = 100
         self.num_sampling_moves = 30
 
         # Root prior exploration noise.
