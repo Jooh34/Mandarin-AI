@@ -98,9 +98,10 @@ class MCTS:
                     self.backpropagate(search_path, 100, root_turn)
                 else:
                     self.backpropagate(search_path, -100, root_turn)
-
-            value = self.evaluate(node, scratch_game, nnet)
-            self.backpropagate(search_path, value, root_turn)
+                    
+            else:
+                value = self.evaluate(node, scratch_game, nnet)
+                self.backpropagate(search_path, value, root_turn)
 
 
         return self.select_action(board, root), root
