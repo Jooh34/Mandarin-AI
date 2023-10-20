@@ -35,7 +35,7 @@ class AlphaZeroConfig(object):
             self.batch_size = 1024
 
         elif MODE == 1: # 4 hour plan
-            self.n_games_to_train = 100
+            self.n_games_to_train = 300
             self.num_simulations = 50
 
             ### Training
