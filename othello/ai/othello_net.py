@@ -6,14 +6,16 @@ BOARD_W = 8
 BOARD_C_IN = 3
 BOARD_C_OUT = 1
 
+NUM_RESNET_CHANNEL = 128
+
 class OthelloNet(nn.Module):
     def __init__(self):
         super().__init__()
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-        self.resnet = ResNet18()
-        self.value_head = ValueHead(64)
-        self.policy_head = PolicyHead(64)
+        self.resnet = ResNet()
+        self.value_head = ValueHead(NUM_RESNET_CHANNEL)
+        self.policy_head = PolicyHead(NUM_RESNET_CHANNEL)
 
         self.num_steps = 0
 
@@ -90,13 +92,13 @@ class ValueHead(nn.Module):
     def forward(self, x):
         return self.model(x)
 
-class ResNet18(nn.Module):
+class ResNet(nn.Module):
     def __init__(self):
         super().__init__()
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         layers = []
 
-        num_blocks = [(2,16),(4,32),(4,64)]
+        num_blocks = [(40,NUM_RESNET_CHANNEL)]
         prev_channel = BOARD_C_IN
         for num_block,channel in num_blocks:
             for b in range(num_block):

@@ -18,6 +18,8 @@ class Board:
         self.winner = None
         self.turn = Camp.Black
 
+        self.last_action = (0, 0)
+
     def is_terminal(self):
         return self.winner != None
 
@@ -66,10 +68,14 @@ class Board:
         self.current_move += 1
         self.turn *= -1
 
-        # check terminal state
+        if self.last_action[0] == -1 and action[0] == -1: # both not movable
+            self.check_terminal_state(True)
+            return
+        
+        self.last_action = action
         self.check_terminal_state()
 
-    def check_terminal_state(self):
+    def check_terminal_state(self, force_judge=False):
         if self.piece_count[Camp.Black] == 0:
             self.winner = Camp.White
         
@@ -77,7 +83,7 @@ class Board:
             self.winner = Camp.Black
         
         _sum = self.piece_count[Camp.Black] + self.piece_count[Camp.White]
-        if _sum == 64:
+        if _sum == (MAX_ROW*MAX_COL) or force_judge:
             if self.piece_count[Camp.Black] < self.piece_count[Camp.White]:
                 self.winner = Camp.White
             elif self.piece_count[Camp.Black] > self.piece_count[Camp.White]:
