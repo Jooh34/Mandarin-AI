@@ -45,11 +45,11 @@ class Board:
         turn_array = [[(1 if self.turn == 1 else 0)]*MAX_COL for _ in range(MAX_ROW)]
         black_array = [[(1 if self._board[i][j] == 1 else 0) for j in range(MAX_COL)] for i in range(MAX_ROW)]
         white_array = [[(1 if self._board[i][j] == -1 else 0) for j in range(MAX_COL)] for i in range(MAX_ROW)]
-        for b in black_array:
-            print(b)
-        for w in white_array:
-            print(w)
-        print(turn_array)
+        # for b in black_array:
+        #     print(b)
+        # for w in white_array:
+        #     print(w)
+        # print(turn_array)
         return [black_array, white_array, turn_array]
 
     def get_possible_actions(self, turn: Camp):
