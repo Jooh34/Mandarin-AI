@@ -136,7 +136,7 @@ class Trainer:
 
         train_start = time.time()
         # prevent overfitting when replay_buffer small
-        _training_step = min(self.config.training_steps, int(len(replay_buffer.board_history) // self.config.batch_size))
+        _training_step = min(self.config.training_steps, int(len(replay_buffer.board_history)*2 // self.config.batch_size))
         
         print(f'training network.. step to train is {_training_step}')
         file_manager.save_replay_buffer(replay_buffer)
