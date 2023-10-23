@@ -36,7 +36,7 @@ class AlphaZeroConfig(object):
 
         elif MODE == 1: # 4 hour plan
             self.n_games_to_train = 100
-            self.num_simulations = 100
+            self.num_simulations = 50
 
             ### Training
             self.training_steps = int(5e2)

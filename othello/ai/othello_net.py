@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
 
-BOARD_H = 8
-BOARD_W = 8
+from core.types import MAX_COL, MAX_ROW
 BOARD_C_IN = 3
 BOARD_C_OUT = 1
 
@@ -35,13 +34,13 @@ class OthelloNet(nn.Module):
         return p,v
     
     def inference(self, _board):
-        # board : [8, 8, 3]
+        # board : [MAX_ROW, MAX_COL, 3]
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
         input = torch.tensor(_board, dtype=torch.float).to(device)
         input = input.unsqueeze(0) # [1,C,H,W]
         p,v = self(input)
-        p = torch.reshape(p, (BOARD_C_OUT,BOARD_H,BOARD_W))
+        p = torch.reshape(p, (BOARD_C_OUT,MAX_ROW,MAX_COL))
         p = p.cpu().detach().numpy()
         v = v.cpu().detach().numpy()
 
@@ -53,8 +52,8 @@ class PolicyHead(nn.Module):
         super().__init__()
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-        # input : (BOARD_H, BOARD_W, in_channels)
-        # output : (BOARD_H, BOARD_W, BOARD_C_OUT) # => move logit probabilities
+        # input : (MAX_ROW, MAX_COL, in_channels)
+        # output : (MAX_ROW, MAX_COL, BOARD_C_OUT) # => move logit probabilities
         filter_size = 64
         self.model = nn.Sequential(
             nn.Conv2d(in_channels, filter_size, 1, 1),
@@ -74,7 +73,7 @@ class ValueHead(nn.Module):
 
         # Use 1x1 filter CNN ? or GAP?
 
-        # input : (BOARD_H, BOARD_W, in_channels)
+        # input : (MAX_ROW, MAX_COL, in_channels)
         # output : 1 scalar (value of board)
         filter_size = 8
 
@@ -83,7 +82,7 @@ class ValueHead(nn.Module):
             nn.BatchNorm2d(filter_size),
             nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(BOARD_H * BOARD_W * filter_size, 256),
+            nn.Linear(MAX_ROW * MAX_COL * filter_size, 256),
             nn.ReLU(),
             nn.Linear(256, 1),
             nn.Tanh()
@@ -98,7 +97,7 @@ class ResNet(nn.Module):
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         layers = []
 
-        num_blocks = [(40,NUM_RESNET_CHANNEL)]
+        num_blocks = [(20,NUM_RESNET_CHANNEL)]
         prev_channel = BOARD_C_IN
         for num_block,channel in num_blocks:
             for b in range(num_block):
@@ -107,8 +106,8 @@ class ResNet(nn.Module):
                 prev_channel = channel
 
 
-        # input : (BOARD_H, BOARD_W, BOARD_C_IN)
-        # output : (BOARD_H ,BOARD_W, 64)
+        # input : (MAX_ROW, MAX_COL, BOARD_C_IN)
+        # output : (MAX_ROW ,MAX_COL, 64)
         self.model = nn.Sequential(*layers).to(device)
 
     def forward(self, x):
@@ -130,8 +129,8 @@ class ResNet34(nn.Module):
                 prev_channel = channel
 
 
-        # input : (BOARD_H, BOARD_W, BOARD_C_IN)
-        # output : (BOARD_H ,BOARD_W, 512)
+        # input : (MAX_ROW, MAX_COL, BOARD_C_IN)
+        # output : (MAX_ROW ,MAX_COL, 512)
         self.model = nn.Sequential(*layers).to(device)
 
     def forward(self, x):
@@ -153,8 +152,8 @@ class ResNet50(nn.Module):
                 in_channels = channel * BottleNeck.expansion
 
 
-        # input : (BOARD_H, BOARD_W, BOARD_C_IN)
-        # output : (BOARD_H ,BOARD_W, 512)
+        # input : (MAX_ROW, MAX_COL, BOARD_C_IN)
+        # output : (MAX_ROW ,MAX_COL, 512)
         self.model = nn.Sequential(*layers).to(device)
 
     def forward(self, x):

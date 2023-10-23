@@ -6,7 +6,7 @@ from core.move import Move
 class Board:
     """
     Simple board class used for the game of Othello. Contains and handles a single 
-    8x8 two-dimensional list that contains -1 (White), 0 (Empty), 1 (Black).
+    6x6 two-dimensional list that contains -1 (White), 0 (Empty), 1 (Black).
     """
 
     def __init__(self):
@@ -91,4 +91,5 @@ class Board:
             else:
                 self.winner = 0
                 
-
+        # if self.winner != None:
+        #     print(f'winner : {self.winner}')

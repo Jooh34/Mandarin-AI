@@ -1,7 +1,7 @@
 from enum import IntEnum, Enum
 
-MAX_ROW = 8
-MAX_COL = 8
+MAX_ROW = 6
+MAX_COL = 6
 
 WIDTH, HEIGHT = 1000, 500
 BOARD_WIDTH, BOARD_HEIGHT = 500, 500

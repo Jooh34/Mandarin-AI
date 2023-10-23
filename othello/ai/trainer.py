@@ -68,7 +68,7 @@ class Trainer:
         file_manager = FileManager()
         replay_buffer = ReplayBuffer(self.config)
         self.nnet = file_manager.latest_network(replay_buffer)
-        summary(self.nnet, (3, 8, 8))
+        summary(self.nnet, (3, MAX_ROW, MAX_COL))
 
         epoch = 1
         while True:
