@@ -3,6 +3,8 @@ from copy import deepcopy
 from core.types import Camp, MAX_ROW, MAX_COL
 from core.move import Move
 
+import numpy as np
+
 class Board:
     """
     Simple board class used for the game of Othello. Contains and handles a single 
@@ -30,10 +32,17 @@ class Board:
         self._board[r][c] = v
 
     def initialize_board(self):
-        self.set(3,3,Camp.White)
-        self.set(4,4,Camp.White)
-        self.set(3,4,Camp.Black)
-        self.set(4,3,Camp.Black)
+        if MAX_ROW == 6:
+            self.set(2,2,Camp.White)
+            self.set(3,3,Camp.White)
+            self.set(2,3,Camp.Black)
+            self.set(3,2,Camp.Black)
+
+        elif MAX_ROW == 8:
+            self.set(3,3,Camp.White)
+            self.set(4,4,Camp.White)
+            self.set(3,4,Camp.Black)
+            self.set(4,3,Camp.Black)
 
     def get_terminal_value(self, camp: Camp):
         if self.winner == camp:
@@ -52,7 +61,7 @@ class Board:
         # for w in white_array:
         #     print(w)
         # print(turn_array)
-        return [black_array, white_array, turn_array]
+        return np.array([black_array, white_array, turn_array])
 
     def get_possible_actions(self, turn: Camp):
         return Move.get_possible_actions(self._board, turn)

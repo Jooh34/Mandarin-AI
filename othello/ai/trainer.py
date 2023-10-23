@@ -5,6 +5,8 @@ import time
 from collections import deque
 from tqdm import tqdm
 from torchsummary import summary
+from multiprocessing import shared_memory
+import threading
 
 from core.board import Board
 from ai.mcts import MCTS
@@ -60,7 +62,6 @@ class ReplayBuffer(object):
 class Trainer:
     def __init__(self):
         self.config = AlphaZeroConfig()
-        self.mcts = MCTS(self.config)
         self.nnet = None
         self.pi_list = []
     
@@ -73,48 +74,76 @@ class Trainer:
         epoch = 1
         while True:
             print(f'epoch : {epoch}')
-            for i in range(self.config.n_games_to_train):
-                print(f'{i+1}-th game playing')
-                self.selfplay_game(self.nnet, replay_buffer, file_manager, True if i<5 else False)
+
+            self.selfplay_game(self.nnet, replay_buffer, file_manager)
 
             self.train_network(replay_buffer, file_manager)
             epoch+=1
 
     def selfplay_game(self, nnet, replay_buffer: ReplayBuffer, file_manager: FileManager, save_replay=False):
-        board = Board()
+        num_mcts = self.config.num_actors
+        shared_input = np.zeros((num_mcts, 3, MAX_ROW, MAX_COL))  # neural net input
 
-        board_history = []
-        pi_list = []
-        if save_replay:
-            action_history = []
+        # check all actors done
+        done_list = [0]*num_mcts
+        done_cnt = 0
 
-        while not board.is_terminal() and len(board_history) < self.config.max_moves:
-            board_history.append(board.get_board_state_to_evaluate())
+        board_list = [Board() for _ in range(num_mcts)]
+        board_history_list = [[] for _ in range(num_mcts)]
+        pi_list = [[] for _ in range(num_mcts)]
 
-            # do mcts and take action
-            action, root = self.mcts.run_mcts(board, nnet)
-            if save_replay:
-                action_history.append(action)
+        k = 1
+        while done_cnt < num_mcts:
+            print(f'{k}th move of {num_mcts} games.')
+            k+=1
 
-            board.take_action(action)
+            mcts_list = []
+            for i in range(num_mcts):
+                board_history_list[i].append(board_list[i].get_board_state_to_evaluate())
+                mcts = MCTS(self.config, board_list[i], shared_input, i)
+                mcts_list.append(mcts)
 
-            # save data for training
-            pi = self.get_search_statistics(root)
-            pi_list.append(pi)
+                mcts.fill_shared_input()
+
+            # first action
+            policy_logits, value = nnet.inference(shared_input)
+            for i,mcts in enumerate(mcts_list):
+                mcts.after_inference(policy_logits[i][0], value[i])
+                mcts.add_exploration_noise(mcts.root)
+            ##
+
+            ## mcts simulations
+            for _ in range(self.config.num_simulations):
+                for i,mcts in enumerate(mcts_list):
+                    mcts.step(policy_logits, value)
+
+                policy_logits, value = nnet.inference(shared_input)
+                for i, mcts in enumerate(mcts_list):
+                    mcts.after_inference(policy_logits[i][0], value[i])
+
+            # select action
+            for i, mcts in enumerate(mcts_list):
+                action = mcts.select_action()
+                board_list[i].take_action(action)
+                pi = self.get_search_statistics(mcts.root)
+                pi_list[i].append(pi)
+
+                if board_list[i].is_terminal() and done_list[i] == 0:
+                    done_list[i] = 1
+                    done_cnt += 1
         
-        if save_replay:
-            file_manager.save_replay(action_history, nnet.num_steps, self.config.num_simulations, board.winner)
-
         # add to replay buffer
-        for i in range(len(board_history)):
-            camp = Camp.Black if i%2 == 0 else Camp.White
-            rw = board.get_terminal_value(camp)
-            
-            replay_buffer.append_reward_list(rw)
-            replay_buffer.append_board_history(board_history[i])
-            replay_buffer.append_pi_list(pi_list[i])
+        for i in range(num_mcts):
+            board_history = board_history_list[i]
+            for j in range(len(board_history)):
+                camp = Camp.Black if j%2 == 0 else Camp.White
+                rw = board_list[i].get_terminal_value(camp)
+                
+                replay_buffer.append_reward_list(rw)
+                replay_buffer.append_board_history(board_history_list[i][j])
+                replay_buffer.append_pi_list(pi_list[i][j])
 
-        print(f'play_game terminated. {len(board_history)} moves, winner : {board.winner}')
+        print(f'{num_mcts} games terminated. replay_buffer size is {len(replay_buffer.reward_list)}')
 
     def train_network(self, replay_buffer: ReplayBuffer, file_manager: FileManager):
         nnet = self.nnet
@@ -161,7 +190,6 @@ class Trainer:
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-
     
     def get_search_statistics(self, root):
         # pi history for training

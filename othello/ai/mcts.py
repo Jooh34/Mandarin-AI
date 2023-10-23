@@ -35,7 +35,8 @@ class Node:
         s=[]
         s.append("value_sum: %s"%(self.value_sum))
         s.append("visit_count: %d"%(self.visit_count))
-        s.append("possible_actions: %s"%(self.children.keys()))
+        s.append("children: %s"%(self.children.keys()))
+        s.append("children visit count: %s"%([child.visit_count for child in self.children.values()]))
         return "%s: {%s}"%(self.__class__.__name__, ', '.join(s))
 
 class Timer:
@@ -69,12 +70,45 @@ class Timer:
             print(tracemalloc.get_traced_memory())
 
 class MCTS:
-    def __init__(self, config: AlphaZeroConfig):
+    def __init__(self, config: AlphaZeroConfig, board, shared_input, id):
         self.config = config
         self.timer = Timer()
+        
+        self.board = board
+        self.scratch_game = board
+
+        self.root = Node(0)
+        self.root_turn = self.board.turn
+        self.current_node = self.root
+        self.search_path = []
+
+        self.shared_input = shared_input
+        self.id = id
+
+        self.board_history = []
+        self.pi_list = []
 
     def show_timer(self, reset=False):
         self.timer.show(reset)
+
+    def fill_shared_input(self):
+        board_np = self.board.get_board_state_to_evaluate()
+        self.shared_input[self.id] = board_np
+
+    def step(self, policy_logits, value):
+        node = self.root
+        scratch_game = deepcopy(self.board)
+        search_path = [node]
+
+        while node.expanded() and not node.is_terminal():
+            action, node = self.select_child(node)
+            scratch_game.take_action(action)
+            node.winner = scratch_game.winner
+            search_path.append(node)
+
+        self.current_node = node
+        self.search_path = search_path
+        self.scratch_game = scratch_game
 
     def run_mcts(self, board: Board, nnet):
         root = Node(0)
@@ -106,7 +140,8 @@ class MCTS:
 
         return self.select_action(board, root), root
     
-    def select_action(self, board: Board, root: Node) -> str:
+    def select_action(self) -> str:
+        root = self.root
         visit_counts = [(child.visit_count, action)
                         for action, child in root.children.items()]
         
@@ -116,6 +151,25 @@ class MCTS:
         _, action = max(visit_counts)
         return action
 
+    def after_inference(self, policy_logits, value):
+        # Expand the node.
+        node = self.current_node
+
+        node.turn = self.scratch_game.turn
+        possible_actions = self.scratch_game.get_possible_actions(self.scratch_game.turn)
+        policy = []
+
+        for action in possible_actions:
+            i,j = action
+            p = policy_logits[i][j]
+            policy.append(math.exp(p))
+
+        policy_sum = sum(policy)
+        for i, p in enumerate(policy):
+            node.children[possible_actions[i]] = Node(p/policy_sum)
+        
+        self.backpropagate(self.search_path, value, self.root_turn)
+    
     # We use the neural network to obtain a value and policy prediction.
     def evaluate(self, node: Node, board: Board, nnet):
         policy_logits, value = nnet.inference(board.get_board_state_to_evaluate())

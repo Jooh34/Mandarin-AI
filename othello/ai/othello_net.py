@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 
 from core.types import MAX_COL, MAX_ROW
 BOARD_C_IN = 3
@@ -38,9 +39,10 @@ class OthelloNet(nn.Module):
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
         input = torch.tensor(_board, dtype=torch.float).to(device)
-        input = input.unsqueeze(0) # [1,C,H,W]
+        B = input.shape[0]
+        # input = input.unsqueeze(0) # [1,C,H,W]
         p,v = self(input)
-        p = torch.reshape(p, (BOARD_C_OUT,MAX_ROW,MAX_COL))
+        p = torch.reshape(p, (B,BOARD_C_OUT,MAX_ROW,MAX_COL))
         p = p.cpu().detach().numpy()
         v = v.cpu().detach().numpy()
 
