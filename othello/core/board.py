@@ -1,10 +1,7 @@
 from copy import deepcopy
 
-from core.types import Camp
+from core.types import Camp, MAX_ROW, MAX_COL
 from core.move import Move
-
-BOARD_H = 8
-BOARD_W = 8
 
 class Board:
     """
@@ -13,7 +10,7 @@ class Board:
     """
 
     def __init__(self):
-        self._board = [[0]*BOARD_W for _ in range(BOARD_H)]
+        self._board = [[0]*MAX_COL for _ in range(MAX_ROW)]
         self.initialize_board()
         self.piece_count = {-1: 2, 1: 2}
         
@@ -45,7 +42,15 @@ class Board:
             return 0 # draw
 
     def get_board_state_to_evaluate(self):
-        pass
+        turn_array = [[(1 if self.turn == 1 else 0)]*MAX_COL for _ in range(MAX_ROW)]
+        black_array = [[(1 if self._board[i][j] == 1 else 0) for j in range(MAX_COL)] for i in range(MAX_ROW)]
+        white_array = [[(1 if self._board[i][j] == -1 else 0) for j in range(MAX_COL)] for i in range(MAX_ROW)]
+        for b in black_array:
+            print(b)
+        for w in white_array:
+            print(w)
+        print(turn_array)
+        return [black_array, white_array, turn_array]
 
     def get_possible_actions(self, turn: Camp):
         return Move.get_possible_actions(self._board, turn)
@@ -57,7 +62,6 @@ class Board:
             self.piece_count[self.turn] += 1
 
         self.piece_count[-self.turn] -= flip_count
-        print("piece count :", self.piece_count[1], self.piece_count[-1])
 
         self.current_move += 1
         self.turn *= -1

@@ -5,26 +5,29 @@ from typing import List, Optional
 from core.board import Board
 from core.types import MAX_ROW, MAX_COL, Camp
 from ui.constants import WIDTH, HEIGHT, BOARD_WIDTH, BOARD_HEIGHT, PIECE_HEIGHT, PIECE_WIDTH, BOARD_START_W, BOARD_START_H, ROW_GAP, COL_GAP
+from ui.constants import KEY_BLACK_PLAYER, KEY_WHITE_PLAYER, KEY_TOTAL_MOVE, KEY_MATCH_RESULT
 
 WHITE = (255,255,255)
 BLACK = ( 0, 0, 0 )
 IMG_PATH = "images/"
 BOARD_FILENAME = "othello-board.png"
 
-class GameWindow:
+class ReplayWindow:
     """Class that renders board game."""
 
-    def __init__(self, board):
+    def __init__(self, match_info, board):
         print('game window!')
         pygame.init()
         pygame.display.init()
         self.display = pygame.display.set_mode((WIDTH, HEIGHT))
-        pygame.display.set_caption("Mandarin-AI Othello")
+        pygame.display.set_caption("Mandarin-AI Othello Replay")
 
         self.board = board
         self.piece_imgs = {}
         self._init_board_image()
         self._init_piece_images()
+
+        self.match_info = match_info
 
         self.board_markers = []
         self.current_move = 0
@@ -35,7 +38,7 @@ class GameWindow:
         self.display.fill(WHITE)
         self.display.blit(self.board_img, (0, 0))
         self._draw_pieces()
-        # self._draw_match_info()
+        self._draw_match_info()
 
         # Draw markers
         for marker in self.board_markers:
@@ -95,25 +98,14 @@ class GameWindow:
         header_font = pygame.font.SysFont("malgungothic", 20, True, False)
         content_font = pygame.font.SysFont("malgungothic", 11, False, False)
 
-        text_moves = header_font.render(f"Move : {self.board.current_move}", True, BLACK)
-        if self.board.winner != None:
-            winner_kor = '초' if self.board.winner == Camp.CHO else '한'
-            text_winner = header_font.render(f"Winner : {winner_kor}", True, BLACK)
-            self.display.blit(text_winner, (600, 100))
+        winner = int(self.match_info[KEY_MATCH_RESULT])
+        winner_str = "Draw"
+        if winner == 1:
+            winner_str = "Black"
+        elif winner == -1:
+            winner_str = "White"
 
+        text_moves = header_font.render(f"Move : {self.board.current_move} / {self.match_info[KEY_TOTAL_MOVE]}", True, BLACK)
+        text_winner = header_font.render(f"Winner : {winner_str}", True, BLACK)
         self.display.blit(text_moves, (600, 150))
-
-    def set_winner(self):
-        header_font = pygame.font.SysFont("arial", 20, True, False)
-
-        result_str = ""
-        if self.board.winner != None:
-            if self.board.winner == Camp.Black:
-                result_str = "Black Win"
-            elif self.board.winner == Camp.White:
-                result_str = "White Win"
-            else:
-                result_str = "Draw"
-
-        text_winner = header_font.render(f"Result : {result_str}", True, BLACK)
-        self.display.blit(text_winner, (300, 300))
+        self.display.blit(text_winner, (600, 100))

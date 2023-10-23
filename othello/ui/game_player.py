@@ -68,6 +68,15 @@ class GamePlayer:
 
     def on_mousebutton_down(self,px,py):
         r,c = self.window.pos_to_rowcol(px,py)
+        
+        if r == -1 and c == -1: # only pass move
+            possible_actions = Move.get_possible_actions(self.board._board, self.board.turn)
+            if possible_actions[0][0] == -1:
+                self.on_take_action((-1,-1))
+                self.refresh_possible_action_marker()
+                self.window.render()
+                return
+
         if not (0 <= r < MAX_ROW and 0 <= c < MAX_COL):
             return
 

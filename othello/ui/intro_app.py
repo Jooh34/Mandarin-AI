@@ -1,10 +1,10 @@
 import sys
 from PyQt5.QtWidgets import QPushButton, QLineEdit, QFileDialog, QHBoxLayout, QVBoxLayout, QWidget, QLabel
 
-# from ui.replay_viewer import ReplayViewer
+from ui.replay_viewer import ReplayViewer
 from ui.game_player import GamePlayer
 
-DEFAULT_GIBO_FILE = "E:\work\Mandarin-AI\othello\data\gibo_example.txt"
+DEFAULT_GIBO_FILE = "E:/work/Mandarin-AI/othello/data/replay/gibo_example.txt"
 
 class IntroApp(QWidget):
     def __init__(self):
@@ -71,12 +71,12 @@ class IntroApp(QWidget):
         '''
             onClick - gibo replay start
         '''
-        # fname = self.selected_file_text.text()
-        # if not fname:
-        #     fname = DEFAULT_GIBO_FILE
+        fname = self.selected_file_text.text()
+        if not fname:
+            fname = DEFAULT_GIBO_FILE
         
-        # replay_viewer = ReplayViewer(fname)
-        # replay_viewer.run()
+        replay_viewer = ReplayViewer(fname)
+        replay_viewer.run()
 
     def btn_newgame_start(self):
         game_player = GamePlayer()
