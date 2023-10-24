@@ -90,7 +90,9 @@ class Trainer:
             action_history = []
             while not board.is_terminal():
                 mcts = MCTS(self.config, board, None, None)
-                action, _ = mcts.run_mcts(board, nnet, False)
+                action_probabilities = mcts.run_mcts(board, nnet, self.config.num_simulations, False) # sorted reverse
+                action = action_probabilities[0][1]
+                print(action_probabilities)
                 action_history.append(action)
                 board.take_action(action)
             
@@ -140,7 +142,7 @@ class Trainer:
 
             # select action
             for i, mcts in enumerate(mcts_list):
-                action = mcts.select_action()
+                action = mcts.select_action(board_list[i].current_move, use_sampling=True)
                 board_list[i].take_action(action)
                 pi = self.get_search_statistics(mcts.root)
                 pi_list[i].append(pi)

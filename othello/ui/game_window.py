@@ -11,6 +11,16 @@ BLACK = ( 0, 0, 0 )
 IMG_PATH = "images/"
 BOARD_FILENAME = "othello-board.png"
 
+
+class Button:
+    def __init__(self, display, img_in, x, y, width, height, on_click):
+        mouse = pygame.mouse.get_pos()
+        click = pygame.mouse.get_pressed()
+        if x < mouse[0] < x + width and y < mouse[1] < y + height and click[0]:
+            on_click()
+
+        display.blit(img_in, (x,y))
+
 class GameWindow:
     """Class that renders board game."""
 
@@ -33,7 +43,12 @@ class GameWindow:
     
     def render(self):
         self.display.fill(WHITE)
-        self.display.blit(self.board_img, (0, 0))
+        if MAX_ROW == 8:
+            self.display.blit(self.board_img, (0, 0))
+        else:
+            cropped_region = (0, 0, BOARD_WIDTH-150, BOARD_HEIGHT-150)
+            self.display.blit(self.board_img, (0, 0), cropped_region)
+
         self._draw_pieces()
         # self._draw_match_info()
 

@@ -110,47 +110,72 @@ class MCTS:
         self.search_path = search_path
         self.scratch_game = scratch_game
 
-    def run_mcts(self, board: Board, nnet, add_exploration_noise=True):
+    def run_mcts(self, board: Board, nnet, num_simulations=1, add_exploration_noise=True):
         self.root = Node(0)
-        root_turn = board.turn
         self.evaluate(self.root, board, nnet)
         if add_exploration_noise:
             self.add_exploration_noise(self.root)
 
-        for _ in range(self.config.num_simulations):
-            node = self.root
-            scratch_game = deepcopy(board)
-            search_path = [node]
+        for _ in range(num_simulations):
+            self.mcts_one_step(board, nnet)
 
-            while node.expanded() and not node.is_terminal():
-                action, node = self.select_child(node)
-                scratch_game.take_action(action)
-                node.winner = scratch_game.winner
-                node.turn = scratch_game.turn
-                search_path.append(node)
-
-            if node.is_terminal():
-                if node.winner == node.turn:
-                    self.backpropagate(search_path, 1, root_turn)
-                else:
-                    self.backpropagate(search_path, -1, root_turn)
-                    
-            else:
-                value = self.evaluate(node, scratch_game, nnet)
-                self.backpropagate(search_path, value, root_turn)
-
-
-        return self.select_action(), self.root
+        return self.get_action_probabilities()
     
-    def select_action(self) -> str:
+    def mcts_one_step(self, board: Board, nnet):
+        node = self.root
+        root_turn = self.root_turn
+        scratch_game = deepcopy(board)
+        search_path = [node]
+
+        while node.expanded() and not node.is_terminal():
+            action, node = self.select_child(node)
+            scratch_game.take_action(action)
+            node.winner = scratch_game.winner
+            node.turn = scratch_game.turn
+            search_path.append(node)
+
+        if node.is_terminal():
+            if node.winner == node.turn:
+                self.backpropagate(search_path, 1, root_turn)
+            else:
+                self.backpropagate(search_path, -1, root_turn)
+                
+        else:
+            value = self.evaluate(node, scratch_game, nnet)
+            self.backpropagate(search_path, value, root_turn)
+
+    def get_action_probabilities(self):
+        '''
+        return action_probabilities : List[(prob, action)]
+        '''
         root = self.root
         visit_counts = [(child.visit_count, action)
                         for action, child in root.children.items()]
         
-        # if len(board.history) < self.config.num_sampling_moves:
-        #     _, action = softmax_sample(visit_counts)
-        # else:
-        _, action = max(visit_counts)
+        v_list = [v for v, _ in visit_counts]
+        v_sum = sum(v_list)
+        action_probabilities = [(visit_count/v_sum, action) for visit_count, action in visit_counts]
+        
+        action_probabilities.sort(reverse=True)
+        return action_probabilities
+
+    def select_action(self, current_move, use_sampling=False):
+        root = self.root
+        visit_counts = [(child.visit_count, action)
+                        for action, child in root.children.items()]
+        
+        if current_move < self.config.num_sampling_moves and use_sampling:
+            action = self.softmax_sample(visit_counts)
+        else:
+            _, action = max(visit_counts)
+        return action
+    
+    def softmax_sample(self, visit_counts):
+        v_list = [v for v, _ in visit_counts]
+        v_sum = sum(v_list)
+        p_list = [visit_count/v_sum for visit_count, _ in visit_counts]
+
+        _, action = random.choices(visit_counts, weights=p_list, k=1)[0]
         return action
 
     def after_inference(self, policy_logits, value):
@@ -166,7 +191,10 @@ class MCTS:
             p = policy_logits[i][j]
             policy.append(math.exp(p))
 
-        policy_sum = sum(policy)
+        policy_sum = sum(policy) + 1e-9
+        if policy_sum == 0:
+            print('policy_sum : ', policy_sum, possible_actions)
+
         for i, p in enumerate(policy):
             node.children[possible_actions[i]] = Node(p/policy_sum)
         
@@ -187,7 +215,7 @@ class MCTS:
             p = policy_logits[0][0][i][j]
             policy.append(math.exp(p))
 
-        policy_sum = sum(policy)
+        policy_sum = sum(policy) + 1e-9
         for i, p in enumerate(policy):
             node.children[possible_actions[i]] = Node(p/policy_sum)
         
