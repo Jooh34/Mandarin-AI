@@ -36,7 +36,12 @@ class ReplayWindow:
     
     def render(self):
         self.display.fill(WHITE)
-        self.display.blit(self.board_img, (0, 0))
+        if MAX_ROW == 8:
+            self.display.blit(self.board_img, (0, 0))
+        else:
+            cropped_region = (0, 0, BOARD_WIDTH-150, BOARD_HEIGHT-150)
+            self.display.blit(self.board_img, (0, 0), cropped_region)
+        
         self._draw_pieces()
         self._draw_match_info()
 

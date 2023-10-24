@@ -80,6 +80,23 @@ class Trainer:
             self.train_network(replay_buffer, file_manager)
             epoch+=1
 
+    def make_replay(self):
+        file_manager = FileManager()
+        replay_buffer = ReplayBuffer(self.config)
+        nnet = file_manager.latest_network(replay_buffer)
+        
+        for i in range(10):
+            board = Board()
+            action_history = []
+            while not board.is_terminal():
+                mcts = MCTS(self.config, board, None, None)
+                action, _ = mcts.run_mcts(board, nnet, False)
+                action_history.append(action)
+                board.take_action(action)
+            
+            file_manager.save_replay(action_history, nnet.num_steps, self.config.num_simulations, board.winner)
+            print(f'replay {i} generated.')
+
     def selfplay_game(self, nnet, replay_buffer: ReplayBuffer, file_manager: FileManager, save_replay=False):
         num_mcts = self.config.num_actors
         shared_input = np.zeros((num_mcts, 3, MAX_ROW, MAX_COL))  # neural net input

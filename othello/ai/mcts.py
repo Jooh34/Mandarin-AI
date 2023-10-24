@@ -1,10 +1,10 @@
 import time
 import math
 import random
-import numpy
 import tracemalloc
 from copy import deepcopy
 from collections import defaultdict
+import numpy as np
 
 from core.board import Board
 from ai.config import AlphaZeroConfig
@@ -110,14 +110,15 @@ class MCTS:
         self.search_path = search_path
         self.scratch_game = scratch_game
 
-    def run_mcts(self, board: Board, nnet):
-        root = Node(0)
+    def run_mcts(self, board: Board, nnet, add_exploration_noise=True):
+        self.root = Node(0)
         root_turn = board.turn
-        self.evaluate(root, board, nnet)
-        self.add_exploration_noise(root)
+        self.evaluate(self.root, board, nnet)
+        if add_exploration_noise:
+            self.add_exploration_noise(self.root)
 
         for _ in range(self.config.num_simulations):
-            node = root
+            node = self.root
             scratch_game = deepcopy(board)
             search_path = [node]
 
@@ -125,6 +126,7 @@ class MCTS:
                 action, node = self.select_child(node)
                 scratch_game.take_action(action)
                 node.winner = scratch_game.winner
+                node.turn = scratch_game.turn
                 search_path.append(node)
 
             if node.is_terminal():
@@ -138,7 +140,7 @@ class MCTS:
                 self.backpropagate(search_path, value, root_turn)
 
 
-        return self.select_action(board, root), root
+        return self.select_action(), self.root
     
     def select_action(self) -> str:
         root = self.root
@@ -172,7 +174,8 @@ class MCTS:
     
     # We use the neural network to obtain a value and policy prediction.
     def evaluate(self, node: Node, board: Board, nnet):
-        policy_logits, value = nnet.inference(board.get_board_state_to_evaluate())
+        input = np.array([board.get_board_state_to_evaluate()])
+        policy_logits, value = nnet.inference(input)
         
         # Expand the node.
         node.turn = board.turn
@@ -181,7 +184,7 @@ class MCTS:
 
         for action in possible_actions:
             i,j = action
-            p = policy_logits[0][i][j]
+            p = policy_logits[0][0][i][j]
             policy.append(math.exp(p))
 
         policy_sum = sum(policy)
@@ -201,7 +204,7 @@ class MCTS:
     # to encourage the search to explore new actions.
     def add_exploration_noise(self, node: Node):
         actions = node.children.keys()
-        noise = numpy.random.gamma(self.config.root_dirichlet_alpha, 1, len(actions))
+        noise = np.random.gamma(self.config.root_dirichlet_alpha, 1, len(actions))
         frac = self.config.root_exploration_fraction
         for a, n in zip(actions, noise):
             node.children[a].prior = node.children[a].prior * (1 - frac) + n * frac
