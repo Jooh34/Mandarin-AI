@@ -252,11 +252,6 @@ class Trainer:
                 augmented_pil = self.augment_2d_list(pi_list[i][j])
                 
                 for bh, pi in zip(augmented_bhl, augmented_pil):
-                    if i == 0 and j == 0:
-                        print(rw)
-                        print(bh)
-                        print(pi)
-
                     replay_buffer.append_reward_list(rw)
                     replay_buffer.append_board_history(bh)
                     replay_buffer.append_pi_list(pi)
