@@ -22,13 +22,14 @@ class AlphaZeroConfig(object):
         self.discount_factor = 0.7
 
         self.num_actors = 1024
+        self.num_randomplay = 128
 
 
         if MODE == 0: # 10 hour plan
             # self.n_games_to_train = 2000
             self.n_games_to_train = 500
 
-            self.num_simulations = 100
+            self.num_simulations = 500
 
             ### Training
             self.training_steps = int(7e3)
@@ -37,7 +38,7 @@ class AlphaZeroConfig(object):
             self.batch_size = 1024
 
         elif MODE == 1: #
-            self.num_simulations = 100
+            self.num_simulations = 200
 
             ### Training
             self.training_steps = int(5e3)

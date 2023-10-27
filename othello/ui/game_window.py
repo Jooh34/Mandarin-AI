@@ -119,9 +119,9 @@ class GameWindow:
         self.display.blit(text_moves, (600, 150))
 
     def set_winner(self):
-        header_font = pygame.font.SysFont("arial", 20, True, False)
+        header_font = pygame.font.SysFont("malgungothic", 20, True, False)
 
-        result_str = ""
+        result_str = ".."
         if self.board.winner != None:
             if self.board.winner == Camp.Black:
                 result_str = "Black Win"
@@ -131,4 +131,4 @@ class GameWindow:
                 result_str = "Draw"
 
         text_winner = header_font.render(f"Result : {result_str}", True, BLACK)
-        self.display.blit(text_winner, (300, 300))
+        self.display.blit(text_winner, (600, 100))

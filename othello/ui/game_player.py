@@ -111,10 +111,10 @@ class GamePlayer:
         self.refresh_ai_marker()
     
     def refresh_ai_marker(self):
-        ap = self.white_player.action_probabilities
+        apv_lst = self.white_player.action_probability_value_list
         markers = []
-        for prob, action in ap:
-            markers.append(BoardMarker(MarkerType.AI_THINK, action[0], action[1], prob))
+        for prob, value, action in apv_lst:
+            markers.append(BoardMarker(MarkerType.AI_THINK, action[0], action[1], prob, value))
         
         self.window.switch_markers(markers)
         

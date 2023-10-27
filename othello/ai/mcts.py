@@ -70,14 +70,17 @@ class Timer:
             print(tracemalloc.get_traced_memory())
 
 class MCTS:
-    def __init__(self, config: AlphaZeroConfig, board, shared_input, id):
+    def __init__(self, config: AlphaZeroConfig, board, shared_input, id, in_root_node=None):
         self.config = config
         self.timer = Timer()
         
         self.board = board
         self.scratch_game = board
 
-        self.root = Node(0)
+        if in_root_node != None:
+            self.root = in_root_node
+        else:
+            self.root = Node(0)
         self.root_turn = self.board.turn
         self.current_node = self.root
         self.search_path = []
@@ -119,7 +122,7 @@ class MCTS:
         for _ in range(num_simulations):
             self.mcts_one_step(board, nnet)
 
-        return self.get_action_probabilities()
+        return self.get_action_probability_value_list()
     
     def mcts_one_step(self, board: Board, nnet):
         node = self.root
@@ -144,20 +147,20 @@ class MCTS:
             value = self.evaluate(node, scratch_game, nnet)
             self.backpropagate(search_path, value, root_turn)
 
-    def get_action_probabilities(self):
+    def get_action_probability_value_list(self):
         '''
-        return action_probabilities : List[(prob, action)]
+        return action_probability_value_list : List[(prob, value, action)]
         '''
         root = self.root
-        visit_counts = [(child.visit_count, action)
+        vc_vs_a_lst = [(child.visit_count, child.value_sum, action)
                         for action, child in root.children.items()]
         
-        v_list = [v for v, _ in visit_counts]
+        v_list = [v for v, _, _ in vc_vs_a_lst]
         v_sum = sum(v_list)
-        action_probabilities = [(visit_count/v_sum, action) for visit_count, action in visit_counts]
+        ret = [(visit_count/v_sum, value_sum/v_sum, action) for visit_count, value_sum, action in vc_vs_a_lst]
         
-        action_probabilities.sort(reverse=True)
-        return action_probabilities
+        ret.sort(reverse=True)
+        return ret
 
     def select_action(self, current_move, use_sampling=False):
         root = self.root
@@ -219,7 +222,7 @@ class MCTS:
         for i, p in enumerate(policy):
             node.children[possible_actions[i]] = Node(p/policy_sum)
         
-        return value
+        return float(value)
     
     # At the end of a simulation, we propagate the evaluation all the way up the
     # tree to the root.

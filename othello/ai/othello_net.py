@@ -6,7 +6,8 @@ from core.types import MAX_COL, MAX_ROW
 BOARD_C_IN = 3
 BOARD_C_OUT = 1
 
-NUM_RESNET_CHANNEL = 128
+NUM_RESIDUAL_LAYERS = 30
+NUM_RESNET_CHANNEL = 256
 
 class OthelloNet(nn.Module):
     def __init__(self):
@@ -99,7 +100,7 @@ class ResNet(nn.Module):
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         layers = []
 
-        num_blocks = [(20,NUM_RESNET_CHANNEL)]
+        num_blocks = [(NUM_RESIDUAL_LAYERS,NUM_RESNET_CHANNEL)]
         prev_channel = BOARD_C_IN
         for num_block,channel in num_blocks:
             for b in range(num_block):

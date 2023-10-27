@@ -88,7 +88,7 @@ class FileManager(object):
         
         self.nnet = torch.load(filepath, map_location=device)
 
-    def save_replay(self, action_history, num_steps, num_simulations, winner):
+    def save_replay(self, action_history, num_steps, num_simulations, winner, black_player='', white_player=''):
         file_name = f'replay_{num_steps}_sim{num_simulations}.txt'
         filepath = os.path.join(self.replay_folder, file_name)
         cnt = 1
@@ -99,8 +99,8 @@ class FileManager(object):
             
         per_row = 6
         with open(filepath, "w", encoding='euc-kr') as f:
-            f.write(f'[{KEY_BLACK_PLAYER} "mandarin-ai-1"]\n')
-            f.write(f'[{KEY_WHITE_PLAYER} "mandarin-ai-2"]\n')
+            f.write(f'[{KEY_BLACK_PLAYER} {black_player}]\n')
+            f.write(f'[{KEY_WHITE_PLAYER} {white_player}]\n')
             f.write(f'[{KEY_MATCH_RESULT} "{winner}"]\n')
             f.write(f'[{KEY_TOTAL_MOVE} "{len(action_history)}"]\n')
             for row in range(len(action_history)//6 + 1):

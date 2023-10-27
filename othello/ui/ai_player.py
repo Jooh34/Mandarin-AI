@@ -19,7 +19,7 @@ class AIPlayer:
         self.nnet.inference(np.zeros((1,3,MAX_ROW,MAX_COL)))
 
         self.mcts = None
-        self.action_probabilities = None
+        self.action_probability_value_list = None
 
     def initialize_mcts(self, board: Board):
         print('ai is choosing action..')
@@ -31,13 +31,13 @@ class AIPlayer:
             raise("mcts is not initialized.")
         
         self.mcts.mcts_one_step(board, self.nnet)
-        self.action_probabilities = self.mcts.get_action_probabilities()
+        self.action_probability_value_list = self.mcts.get_action_probability_value_list()
     
     def ai_choose_action(self):
-        best_action = self.action_probabilities[0][1]
+        best_action = self.action_probability_value_list[0][2]
 
         self.mcts = None
-        self.action_probabilities = None
+        self.action_probability_value_list = None
        
         return best_action
 
