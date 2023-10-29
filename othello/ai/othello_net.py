@@ -6,8 +6,8 @@ from core.types import MAX_COL, MAX_ROW
 BOARD_C_IN = 3
 BOARD_C_OUT = 1
 
-NUM_RESIDUAL_LAYERS = 30
-NUM_RESNET_CHANNEL = 256
+NUM_RESIDUAL_LAYERS = 4
+NUM_RESNET_CHANNEL = 512
 
 class OthelloNet(nn.Module):
     def __init__(self):

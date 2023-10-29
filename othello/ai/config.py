@@ -38,12 +38,12 @@ class AlphaZeroConfig(object):
             self.batch_size = 1024
 
         elif MODE == 1: #
-            self.num_simulations = 200
+            self.num_simulations = 100
 
             ### Training
             self.training_steps = int(5e3)
             self.checkpoint_interval = int(1e3)
-            self.window_size = int(1e6)
+            self.window_size = int(5e5)
             self.batch_size = 1024
 
         else:

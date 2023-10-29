@@ -11,6 +11,7 @@ from core.board import Board
 from ai.mcts import MCTS
 from ai.file_manager import FileManager
 from ai.config import AlphaZeroConfig
+import matplotlib.pyplot as plt
 
 from core.types import Camp, MAX_ROW, MAX_COL
 
@@ -63,6 +64,8 @@ class Trainer:
         self.config = AlphaZeroConfig()
         self.nnet = None
         self.pi_list = []
+
+        self.plot_data = [[],[]]
     
     def train(self):
         file_manager = FileManager()
@@ -74,10 +77,11 @@ class Trainer:
         while True:
             print(f'epoch : {epoch}')
 
-            self.selfplay_game(self.nnet, replay_buffer, file_manager)
+            # self.selfplay_game(self.nnet, replay_buffer, file_manager)
 
             self.train_network(replay_buffer, file_manager)
             self.evaluate_vs_randomplay(self.nnet, file_manager)
+            self.selfplay_game(self.nnet, replay_buffer, file_manager)
             epoch+=1
 
     def make_replay(self):
@@ -280,14 +284,12 @@ class Trainer:
 
     def train_network(self, replay_buffer: ReplayBuffer, file_manager: FileManager):
         nnet = self.nnet
-        optimizer = torch.optim.AdamW(nnet.parameters(), lr=1e-1, weight_decay=self.config.weight_decay) # temp
-        scheduler = torch.optim.lr_scheduler.CyclicLR(
-            optimizer, base_lr=0.001, max_lr=0.1, step_size_up=10, step_size_down=15, mode='triangular', cycle_momentum=False)
+        optimizer = torch.optim.Adam(nnet.parameters(), lr=1e-3)
         
 
         train_start = time.time()
         # prevent overfitting when replay_buffer small
-        _training_step = min(self.config.training_steps, int(len(replay_buffer.board_history)*5 // self.config.batch_size)+1)
+        _training_step = min(self.config.training_steps, int(len(replay_buffer.board_history) // self.config.batch_size)+1)
         
         print(f'training network.. step to train is {_training_step}')
         file_manager.save_replay_buffer(replay_buffer)
@@ -298,7 +300,8 @@ class Trainer:
             batch = replay_buffer.sample_batch()
             self.update_weights(optimizer, nnet, batch, i%100==0)
             nnet.increase_num_steps()
-            scheduler.step()
+        self.save_plot_image(nnet.num_steps)
+
 
         elapsed = time.time()-train_start
         print(f'finished training network. elapsed {elapsed} seconds')
@@ -326,7 +329,17 @@ class Trainer:
             print(loss2)
         loss.backward()
         optimizer.step()
+
+        self.add_plot_data(nnet.num_steps, loss.cpu().detach().numpy())
     
+    def add_plot_data(self, num_steps, loss):
+        self.plot_data[0].append(num_steps)
+        self.plot_data[1].append(loss)
+        
+    def save_plot_image(self, num_steps):
+        plt.plot(self.plot_data[0], self.plot_data[1])
+        plt.savefig(f'{num_steps}.png')
+
     def get_search_statistics(self, root):
         # pi history for training
         sum_visits = sum(child.visit_count for child in root.children.values())
