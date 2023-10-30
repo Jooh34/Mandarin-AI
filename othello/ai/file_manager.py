@@ -41,6 +41,8 @@ class FileManager(object):
         else:
             # return ProxyUniformNetwork()  # policy -> uniform, value -> 0.5
             self.nnet = OthelloNet()
+            if replay_buffer != None:
+                self.load_replay_buffer(self.nnet.num_steps, replay_buffer)
             return self.nnet
 
     def save_checkpoint(self):
@@ -78,6 +80,16 @@ class FileManager(object):
         
         print(f'replay buffer successfully loaded. {len(data["pi_list"])} data loaded.')
         replay_buffer.load_from_pickle(data)
+
+        # for i in range(100):
+        #     bh = replay_buffer.board_history[i]
+        #     rw = replay_buffer.reward_list[i]
+        #     pi = replay_buffer.pi_list[i]
+        #     print(f'turn : {bh[2][0][0]}, reward : {rw}')
+        #     for row in pi:
+        #         print(row)
+
+        # raise(Exception("asdasd"))
 
     def load_checkpoint(self, folder, filename):
         device = "cuda" if torch.cuda.is_available() else "cpu"

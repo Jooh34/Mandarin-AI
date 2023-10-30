@@ -38,10 +38,10 @@ class BoardMarker:
             value_font = pygame.font.SysFont("malgungothic", 9, True, False)
             prob_text = content_font.render(f"{self.prob}", True, WHITE)
 
-            value_percent = round((self.value+1)*100/2 , 3)
+            value_percent = round((-self.value+1)*100/2 , 3)
             value_text = value_font.render(f"{value_percent}%", True, RED)
             screen.blit(prob_text, (self.x-15, self.y-10))
-            # screen.blit(value_text, (self.x-15, self.y+10))
+            screen.blit(value_text, (self.x-15, self.y+10))
 
     def rowcol_to_pos(self, row, col):
         return (BOARD_START_W + COL_GAP * col + PIECE_WIDTH, BOARD_START_H + ROW_GAP * row + PIECE_HEIGHT)

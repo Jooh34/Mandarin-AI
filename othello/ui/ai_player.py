@@ -9,11 +9,16 @@ from core.board import Board
 from ai.othello_net import OthelloNet
 from ai.mcts import MCTS
 from ai.config import AlphaZeroConfig
+from ai.file_manager import FileManager
+from ai.trainer import ReplayBuffer
 
 class AIPlayer:
     def __init__(self, camp: Camp):
         self.camp = camp
-        self.nnet = OthelloNet()
+        
+        self.config = AlphaZeroConfig()
+        file_manager = FileManager()
+        self.nnet = file_manager.latest_network()
 
         # to remove delay on first
         self.nnet.inference(np.zeros((1,3,MAX_ROW,MAX_COL)))
@@ -23,7 +28,7 @@ class AIPlayer:
 
     def initialize_mcts(self, board: Board):
         print('ai is choosing action..')
-        self.mcts = MCTS(AlphaZeroConfig(), board, None, None)
+        self.mcts = MCTS(self.config, board, None, None)
         self.mcts.mcts_one_step(board, self.nnet)
 
     def think_one_step(self, board: Board):

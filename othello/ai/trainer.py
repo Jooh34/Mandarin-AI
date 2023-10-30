@@ -78,9 +78,8 @@ class Trainer:
             print(f'epoch : {epoch}')
 
             # self.selfplay_game(self.nnet, replay_buffer, file_manager)
-
             self.train_network(replay_buffer, file_manager)
-            self.evaluate_vs_randomplay(self.nnet, file_manager)
+            self.evaluate_vs_randomplay(self.nnet, file_manager, 100)
             self.selfplay_game(self.nnet, replay_buffer, file_manager)
             epoch+=1
 
@@ -105,7 +104,7 @@ class Trainer:
             file_manager.save_replay(action_history, nnet.num_steps, self.config.num_simulations, board.winner)
             print(f'replay {i} generated.')
 
-    def evaluate_vs_randomplay(self, nnet, file_manager: FileManager):
+    def evaluate_vs_randomplay(self, nnet, file_manager: FileManager, num_simulation):
         num_mcts = self.config.num_randomplay
         shared_input = np.zeros((num_mcts, 3, MAX_ROW, MAX_COL))  # neural net input
 
@@ -143,7 +142,7 @@ class Trainer:
                 ##
 
                 ## mcts simulations
-                for _ in range(self.config.num_simulations):
+                for _ in range(num_simulation):
                     for i,mcts in enumerate(mcts_list):
                         mcts.step(policy_logits, value)
 
@@ -153,7 +152,7 @@ class Trainer:
 
                 # select action
                 for i, mcts in enumerate(mcts_list):
-                    action = mcts.select_action(board_list[i].current_move, use_sampling=True)
+                    action = mcts.select_action(board_list[i].current_move, use_sampling=False)
                     board_list[i].take_action(action)
                     action_history[i].append(action)
 
@@ -308,9 +307,12 @@ class Trainer:
         file_manager.save_checkpoint()
         file_manager.save_replay_buffer(replay_buffer)
         
+    def loss_pi(self, targets, outputs):
+        return -torch.sum(targets * outputs) / targets.size()[0]
     
     def update_weights(self, optimizer, nnet, batch, print_loss=False):
         mse_loss = nn.MSELoss()
+        nll_loss = self.loss_pi
         
         image, target_policy, target_value = batch
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -320,7 +322,7 @@ class Trainer:
 
         policy_logits, value = nnet(image)
         loss1 = mse_loss(value, target_value)
-        loss2 = nn.functional.cross_entropy(policy_logits, target_policy)
+        loss2 = nll_loss(policy_logits, target_policy)
         loss = loss1+loss2
 
         optimizer.zero_grad()

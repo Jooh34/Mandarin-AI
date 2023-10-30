@@ -138,14 +138,15 @@ class MCTS:
             search_path.append(node)
 
         if node.is_terminal():
+            # print(f'predicted winner : {node.winner}, {node.turn}, root turn:{self.root.turn}=={root_turn}')
             if node.winner == node.turn:
-                self.backpropagate(search_path, 1, root_turn)
+                self.backpropagate(search_path, 1, node.turn)
             else:
-                self.backpropagate(search_path, -1, root_turn)
+                self.backpropagate(search_path, -1, node.turn)
                 
         else:
             value = self.evaluate(node, scratch_game, nnet)
-            self.backpropagate(search_path, value, root_turn)
+            self.backpropagate(search_path, value, node.turn)
 
     def get_action_probability_value_list(self):
         '''
@@ -166,6 +167,8 @@ class MCTS:
         root = self.root
         visit_counts = [(child.visit_count, action)
                         for action, child in root.children.items()]
+
+        # values = [(child.value_sum/(child.visit_count+1e-9), action) for action,child in root.children.items()]
         
         if current_move < self.config.num_sampling_moves and use_sampling:
             action = self.softmax_sample(visit_counts)
@@ -213,23 +216,38 @@ class MCTS:
         possible_actions = board.get_possible_actions(board.turn)
         policy = []
 
+        def softmax(x):
+            e_x = np.exp((x - np.max(x)))
+            return e_x / e_x.sum()
+
         for action in possible_actions:
             i,j = action
             p = policy_logits[0][0][i][j]
-            policy.append(math.exp(p))
+            # policy.append(math.exp(p))
+            policy.append(p)
 
-        policy_sum = sum(policy) + 1e-9
-        for i, p in enumerate(policy):
-            node.children[possible_actions[i]] = Node(p/policy_sum)
+        # policy_sum = sum(policy) + 1e-9
+        softmax_lst = softmax(np.array(policy))
+
+        temp = 0
+        for i, sm in enumerate(softmax_lst):
+            node.children[possible_actions[i]] = Node(sm)
+            temp += sm
+        # print(policy)
+        # print(softmax_lst)
         
         return float(value)
     
     # At the end of a simulation, we propagate the evaluation all the way up the
     # tree to the root.
     def backpropagate(self, search_path: List[Node], value: float, turn):
+        # print(f'root value_sum bef: {self.root.value_sum}')
         for node in search_path:
-            node.value_sum += value if node.turn == turn else -value
+            # if node == self.root:
+            #     print(f'backprop root : {value}, node.turn:{node.turn}, turn:{turn}')
+            node.value_sum += (value if turn == node.turn else -value)
             node.visit_count += 1
+        # print(f'root value_sum aft: {self.root.value_sum}')
 
     # At the start of each search, we add dirichlet noise to the prior of the root
     # to encourage the search to explore new actions.
@@ -240,17 +258,22 @@ class MCTS:
         for a, n in zip(actions, noise):
             node.children[a].prior = node.children[a].prior * (1 - frac) + n * frac
 
-    # Select the child with the highest UCB score.
     def select_child(self, node: Node):
         _, action, child = max([(self.ucb_score(node, child), action, child)
                                 for action, child in node.children.items()])
         
+        # if node == self.root:
+        #     for a, c in node.children.items():
+        #         print(f'child_prior : {a}, prior: {c.prior} value: {round(float(c.value()),3)}, pvisit: {node.visit_count}, visit: {c.visit_count}, ucb:{self.ucb_score(node, c)}')
+        
         return action, child
     def ucb_score(self, parent: Node, child: Node):
-        pb_c = math.log((parent.visit_count + self.config.pb_c_base + 1) /
-                        self.config.pb_c_base) + self.config.pb_c_init
-        pb_c *= math.sqrt(parent.visit_count) / (child.visit_count + 1)
+        # pb_c = math.log((parent.visit_count + self.config.pb_c_base + 1) /
+        #                 self.config.pb_c_base) + self.config.pb_c_init
+        pb_c = self.config.pb_c_init
+        pb_c *= math.sqrt(parent.visit_count) / (child.visit_count + 1e-9)
 
         prior_score = pb_c * child.prior
-        value_score = child.value()
+        value_score = -child.value()
+
         return prior_score + value_score

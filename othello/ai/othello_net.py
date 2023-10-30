@@ -8,6 +8,19 @@ BOARD_C_OUT = 1
 
 NUM_RESIDUAL_LAYERS = 4
 NUM_RESNET_CHANNEL = 512
+HEAD_FC_SIZE = 512
+
+def initialize_weights(m):
+    if isinstance(m, nn.Conv2d):
+        nn.init.kaiming_uniform_(m.weight.data,nonlinearity='relu')
+        if m.bias is not None:
+            nn.init.constant_(m.bias.data, 0)
+    elif isinstance(m, nn.BatchNorm2d):
+        nn.init.constant_(m.weight.data, 1)
+        nn.init.constant_(m.bias.data, 0)
+    elif isinstance(m, nn.Linear):
+        nn.init.kaiming_uniform_(m.weight.data)
+        nn.init.constant_(m.bias.data, 0)
 
 class OthelloNet(nn.Module):
     def __init__(self):
@@ -19,6 +32,8 @@ class OthelloNet(nn.Module):
         self.policy_head = PolicyHead(NUM_RESNET_CHANNEL)
 
         self.num_steps = 0
+
+        # self.apply(initialize_weights)
 
     def increase_num_steps(self):
         self.num_steps += 1
@@ -57,17 +72,23 @@ class PolicyHead(nn.Module):
 
         # input : (MAX_ROW, MAX_COL, in_channels)
         # output : (MAX_ROW, MAX_COL, BOARD_C_OUT) # => move logit probabilities
-        filter_size = 64
+        filter_size = 32
+        ret_dim = MAX_ROW*MAX_COL*BOARD_C_OUT
         self.model = nn.Sequential(
             nn.Conv2d(in_channels, filter_size, 1, 1),
             nn.BatchNorm2d(filter_size),
             nn.ReLU(),
-            nn.Conv2d(filter_size, BOARD_C_OUT, 1, 1),
-            nn.Flatten() # to apply cross-entropy
+            nn.Flatten(),
+            nn.Linear(MAX_ROW*MAX_COL*filter_size, HEAD_FC_SIZE),
+            nn.ReLU(),
+            nn.Linear(HEAD_FC_SIZE, HEAD_FC_SIZE),
+            nn.ReLU(),
+            nn.Linear(HEAD_FC_SIZE, ret_dim),
         ).to(device)
 
     def forward(self, x):
-        return self.model(x)
+        x=self.model(x)
+        return torch.nn.functional.log_softmax(x, dim=1)
 
 class ValueHead(nn.Module):
     def __init__(self, in_channels):
@@ -78,16 +99,18 @@ class ValueHead(nn.Module):
 
         # input : (MAX_ROW, MAX_COL, in_channels)
         # output : 1 scalar (value of board)
-        filter_size = 8
+        filter_size = 32
 
         self.model = nn.Sequential(
             nn.Conv2d(in_channels, filter_size, 1, 1),
             nn.BatchNorm2d(filter_size),
             nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(MAX_ROW * MAX_COL * filter_size, 256),
+            nn.Linear(MAX_ROW * MAX_COL * filter_size, HEAD_FC_SIZE),
             nn.ReLU(),
-            nn.Linear(256, 1),
+            nn.Linear(HEAD_FC_SIZE, HEAD_FC_SIZE),
+            nn.ReLU(),
+            nn.Linear(HEAD_FC_SIZE, 1),
             nn.Tanh()
         ).to(device)
     
