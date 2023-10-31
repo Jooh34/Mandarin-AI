@@ -195,16 +195,19 @@ class MCTS:
         for action in possible_actions:
             i,j = action
             p = policy_logits[i][j]
-            policy.append(math.exp(p))
-
-        policy_sum = sum(policy) + 1e-9
-        if policy_sum == 0:
-            print('policy_sum : ', policy_sum, possible_actions)
+            policy.append(p)
 
         for i, p in enumerate(policy):
-            node.children[possible_actions[i]] = Node(p/policy_sum)
+            node.children[possible_actions[i]] = Node(p)
         
-        self.backpropagate(self.search_path, value, self.root_turn)
+        if node.is_terminal():
+            if node.winner == node.turn:
+                self.backpropagate(self.search_path, 1, node.turn)
+            else:
+                self.backpropagate(self.search_path, -1, node.turn)
+                
+        else:
+            self.backpropagate(self.search_path, value, node.turn)
     
     # We use the neural network to obtain a value and policy prediction.
     def evaluate(self, node: Node, board: Board, nnet):
@@ -216,24 +219,16 @@ class MCTS:
         possible_actions = board.get_possible_actions(board.turn)
         policy = []
 
-        def softmax(x):
-            e_x = np.exp((x - np.max(x)))
-            return e_x / e_x.sum()
-
         for action in possible_actions:
             i,j = action
             p = policy_logits[0][0][i][j]
-            # policy.append(math.exp(p))
             policy.append(p)
 
-        # policy_sum = sum(policy) + 1e-9
-        softmax_lst = softmax(np.array(policy))
-
-        temp = 0
-        for i, sm in enumerate(softmax_lst):
-            node.children[possible_actions[i]] = Node(sm)
-            temp += sm
-        # print(policy)
+        sum_p = 0
+        for i, p in enumerate(policy):
+            node.children[possible_actions[i]] = Node(p)
+            sum_p += p
+        
         # print(softmax_lst)
         
         return float(value)

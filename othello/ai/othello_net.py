@@ -6,9 +6,9 @@ from core.types import MAX_COL, MAX_ROW
 BOARD_C_IN = 3
 BOARD_C_OUT = 1
 
-NUM_RESIDUAL_LAYERS = 4
-NUM_RESNET_CHANNEL = 512
-HEAD_FC_SIZE = 512
+NUM_RESIDUAL_LAYERS = 5
+NUM_RESNET_CHANNEL = 256
+HEAD_FC_SIZE = 1024
 
 def initialize_weights(m):
     if isinstance(m, nn.Conv2d):
@@ -33,7 +33,7 @@ class OthelloNet(nn.Module):
 
         self.num_steps = 0
 
-        # self.apply(initialize_weights)
+        self.apply(initialize_weights)
 
     def increase_num_steps(self):
         self.num_steps += 1
@@ -51,12 +51,12 @@ class OthelloNet(nn.Module):
         return p,v
     
     def inference(self, _board):
-        # board : [MAX_ROW, MAX_COL, 3]
+        # board : [3, MAX_ROW, MAX_COL]
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
         input = torch.tensor(_board, dtype=torch.float).to(device)
         B = input.shape[0]
-        # input = input.unsqueeze(0) # [1,C,H,W]
+        # [1,H,W,C]
         p,v = self(input)
         p = torch.reshape(p, (B,BOARD_C_OUT,MAX_ROW,MAX_COL))
         p = p.cpu().detach().numpy()
@@ -84,11 +84,12 @@ class PolicyHead(nn.Module):
             nn.Linear(HEAD_FC_SIZE, HEAD_FC_SIZE),
             nn.ReLU(),
             nn.Linear(HEAD_FC_SIZE, ret_dim),
+            nn.Softmax(dim=1)
         ).to(device)
 
     def forward(self, x):
-        x=self.model(x)
-        return torch.nn.functional.log_softmax(x, dim=1)
+        x = self.model(x)
+        return x
 
 class ValueHead(nn.Module):
     def __init__(self, in_channels):

@@ -77,10 +77,11 @@ class Trainer:
         while True:
             print(f'epoch : {epoch}')
 
-            # self.selfplay_game(self.nnet, replay_buffer, file_manager)
+            self.selfplay_game(self.nnet, replay_buffer, file_manager)
             self.train_network(replay_buffer, file_manager)
             self.evaluate_vs_randomplay(self.nnet, file_manager, 100)
-            self.selfplay_game(self.nnet, replay_buffer, file_manager)
+
+            # self.selfplay_game(self.nnet, replay_buffer, file_manager)
             epoch+=1
 
     def make_replay(self):
@@ -152,6 +153,8 @@ class Trainer:
 
                 # select action
                 for i, mcts in enumerate(mcts_list):
+                    if board_list[i].is_terminal():
+                        continue
                     action = mcts.select_action(board_list[i].current_move, use_sampling=False)
                     board_list[i].take_action(action)
                     action_history[i].append(action)
@@ -312,6 +315,7 @@ class Trainer:
     
     def update_weights(self, optimizer, nnet, batch, print_loss=False):
         mse_loss = nn.MSELoss()
+        # cross_entrophy_loss = nn.functional.cross_entropy
         nll_loss = self.loss_pi
         
         image, target_policy, target_value = batch
@@ -322,7 +326,7 @@ class Trainer:
 
         policy_logits, value = nnet(image)
         loss1 = mse_loss(value, target_value)
-        loss2 = nll_loss(policy_logits, target_policy)
+        loss2 = nll_loss(torch.log(policy_logits), target_policy)
         loss = loss1+loss2
 
         optimizer.zero_grad()
