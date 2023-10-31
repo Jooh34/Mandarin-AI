@@ -310,13 +310,13 @@ class Trainer:
         file_manager.save_checkpoint()
         file_manager.save_replay_buffer(replay_buffer)
         
-    def loss_pi(self, targets, outputs):
+    def loss_nll(self, outputs, targets):
         return -torch.sum(targets * outputs) / targets.size()[0]
     
     def update_weights(self, optimizer, nnet, batch, print_loss=False):
         mse_loss = nn.MSELoss()
         # cross_entrophy_loss = nn.functional.cross_entropy
-        nll_loss = self.loss_pi
+        nll_loss = self.loss_nll
         
         image, target_policy, target_value = batch
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -326,7 +326,7 @@ class Trainer:
 
         policy_logits, value = nnet(image)
         loss1 = mse_loss(value, target_value)
-        loss2 = nll_loss(torch.log(policy_logits), target_policy)
+        loss2 = nll_loss(torch.log(policy_logits), target_policy) # model policy output is softmax. so log there to NLL Loss.
         loss = loss1+loss2
 
         optimizer.zero_grad()

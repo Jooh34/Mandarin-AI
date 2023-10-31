@@ -45,10 +45,3 @@ class AIPlayer:
         self.action_probability_value_list = None
        
         return best_action
-
-    def softmax(slef,x):
-        exp_a = np.exp(x)
-        sum_exp_a = np.sum(exp_a)
-        y = exp_a / sum_exp_a
-        
-        return y
