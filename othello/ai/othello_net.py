@@ -8,7 +8,7 @@ BOARD_C_OUT = 1
 
 NUM_RESIDUAL_LAYERS = 5
 NUM_RESNET_CHANNEL = 256
-HEAD_FC_SIZE = 1024
+HEAD_FC_SIZE = 512
 
 def initialize_weights(m):
     if isinstance(m, nn.Conv2d):
@@ -33,7 +33,7 @@ class OthelloNet(nn.Module):
 
         self.num_steps = 0
 
-        self.apply(initialize_weights)
+        # self.apply(initialize_weights)
 
     def increase_num_steps(self):
         self.num_steps += 1

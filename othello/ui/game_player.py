@@ -49,7 +49,7 @@ class GamePlayer:
             self.window.render()
             # Winner appeared
             if self.board.winner != None:
-                self.window.set_winner()
+                self.window.switch_markers([])
                 self.window.render()
                 continue 
 

@@ -263,10 +263,10 @@ class MCTS:
         
         return action, child
     def ucb_score(self, parent: Node, child: Node):
-        # pb_c = math.log((parent.visit_count + self.config.pb_c_base + 1) /
-        #                 self.config.pb_c_base) + self.config.pb_c_init
+        pb_c = math.log((parent.visit_count + self.config.pb_c_base + 1) /
+                        self.config.pb_c_base) + self.config.pb_c_init
         pb_c = self.config.pb_c_init
-        pb_c *= math.sqrt(parent.visit_count) / (child.visit_count + 1e-9)
+        pb_c *= math.sqrt(parent.visit_count) / (child.visit_count + 1)
 
         prior_score = pb_c * child.prior
         value_score = -child.value()

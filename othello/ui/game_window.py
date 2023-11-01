@@ -50,6 +50,7 @@ class GameWindow:
             self.display.blit(self.board_img, (0, 0), cropped_region)
 
         self._draw_pieces()
+        self._draw_winner()
         # self._draw_match_info()
 
         # Draw markers
@@ -118,10 +119,10 @@ class GameWindow:
 
         self.display.blit(text_moves, (600, 150))
 
-    def set_winner(self):
+    def _draw_winner(self):
         header_font = pygame.font.SysFont("malgungothic", 20, True, False)
 
-        result_str = ".."
+        result_str = ""
         if self.board.winner != None:
             if self.board.winner == Camp.Black:
                 result_str = "Black Win"
@@ -130,5 +131,5 @@ class GameWindow:
             else:
                 result_str = "Draw"
 
-        text_winner = header_font.render(f"Result : {result_str}", True, BLACK)
+        text_winner = header_font.render(f"{result_str}", True, BLACK)
         self.display.blit(text_winner, (600, 100))

@@ -48,7 +48,7 @@ class AlphaZeroConfig(object):
 
         else:
             self.n_games_to_train = 1
-            self.num_simulations = 10
+            self.num_simulations = 2
 
             ### Training
             self.training_steps = int(2)

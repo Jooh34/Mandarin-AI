@@ -77,11 +77,11 @@ class Trainer:
         while True:
             print(f'epoch : {epoch}')
 
-            self.selfplay_game(self.nnet, replay_buffer, file_manager)
+            # self.selfplay_game(self.nnet, replay_buffer, file_manager)
             self.train_network(replay_buffer, file_manager)
             self.evaluate_vs_randomplay(self.nnet, file_manager, 100)
 
-            # self.selfplay_game(self.nnet, replay_buffer, file_manager)
+            self.selfplay_game(self.nnet, replay_buffer, file_manager)
             epoch+=1
 
     def make_replay(self):
@@ -261,6 +261,8 @@ class Trainer:
                     replay_buffer.append_reward_list(rw)
                     replay_buffer.append_board_history(bh)
                     replay_buffer.append_pi_list(pi)
+                    if j == 0:
+                        continue # initial board state's all symmetries are same. use only one.
         
         elapsed = time.time()-selfplay_starttime
         print(f'{num_mcts} games terminated. replay_buffer size is {len(replay_buffer.reward_list)}. elapsed time is {elapsed} seconds.')
@@ -286,7 +288,7 @@ class Trainer:
 
     def train_network(self, replay_buffer: ReplayBuffer, file_manager: FileManager):
         nnet = self.nnet
-        optimizer = torch.optim.Adam(nnet.parameters(), lr=1e-3)
+        optimizer = torch.optim.SGD(nnet.parameters(), lr=1e-3)
         
 
         train_start = time.time()

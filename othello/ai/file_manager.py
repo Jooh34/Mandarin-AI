@@ -81,14 +81,22 @@ class FileManager(object):
         print(f'replay buffer successfully loaded. {len(data["pi_list"])} data loaded.')
         replay_buffer.load_from_pickle(data)
 
-        # for i in range(100):
+        # black_win = 0
+        # white_win = 0
+        # for i in range(100000):
         #     bh = replay_buffer.board_history[i]
         #     rw = replay_buffer.reward_list[i]
         #     pi = replay_buffer.pi_list[i]
-        #     print(f'turn : {bh[2][0][0]}, reward : {rw}')
-        #     for row in pi:
-        #         print(row)
 
+        #     if bh[2][0][0] == 0 and rw == 1:
+        #         black_win+=1
+        #     if bh[2][0][0] == 1 and rw == 1:
+        #         white_win+=1
+
+        #     print(f'turn : {bh[2][0][0]}, reward : {rw}')
+        #     # for row in pi:
+        #     #     print(row)
+        # print(f'black win : {black_win}, white win : {white_win}')
         # raise(Exception("asdasd"))
 
     def load_checkpoint(self, folder, filename):
