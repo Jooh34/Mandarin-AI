@@ -77,11 +77,11 @@ class Trainer:
         while True:
             print(f'epoch : {epoch}')
 
-            # self.selfplay_game(self.nnet, replay_buffer, file_manager)
+            self.selfplay_game(self.nnet, replay_buffer, file_manager)
             self.train_network(replay_buffer, file_manager)
             self.evaluate_vs_randomplay(self.nnet, file_manager, 100)
 
-            self.selfplay_game(self.nnet, replay_buffer, file_manager)
+            # self.selfplay_game(self.nnet, replay_buffer, file_manager)
             epoch+=1
 
     def make_replay(self):
