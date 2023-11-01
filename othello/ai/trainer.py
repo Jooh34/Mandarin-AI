@@ -288,7 +288,7 @@ class Trainer:
 
     def train_network(self, replay_buffer: ReplayBuffer, file_manager: FileManager):
         nnet = self.nnet
-        optimizer = torch.optim.SGD(nnet.parameters(), lr=1e-3)
+        optimizer = torch.optim.AdamW(nnet.parameters(), lr=1e-4)
         
 
         train_start = time.time()
