@@ -58,6 +58,8 @@ class OthelloNet(nn.Module):
         B = input.shape[0]
         # [1,H,W,C]
         p,v = self(input)
+        # print(v)
+        p = torch.exp(p)
         p = torch.reshape(p, (B,BOARD_C_OUT,MAX_ROW,MAX_COL))
         p = p.cpu().detach().numpy()
         v = v.cpu().detach().numpy()
@@ -84,7 +86,7 @@ class PolicyHead(nn.Module):
             nn.Linear(HEAD_FC_SIZE, HEAD_FC_SIZE),
             nn.ReLU(),
             nn.Linear(HEAD_FC_SIZE, ret_dim),
-            nn.Softmax(dim=1)
+            nn.LogSoftmax(dim=1),
         ).to(device)
 
     def forward(self, x):

@@ -66,12 +66,13 @@ class Trainer:
         self.pi_list = []
 
         self.plot_data = [[],[]]
+        self.winrate_data = [[],[]]
     
     def train(self):
         file_manager = FileManager()
         replay_buffer = ReplayBuffer(self.config)
         self.nnet = file_manager.latest_network(replay_buffer)
-        summary(self.nnet, (3, MAX_ROW, MAX_COL))
+        # summary(self.nnet, (3, MAX_ROW, MAX_COL))
 
         epoch = 1
         while True:
@@ -80,6 +81,7 @@ class Trainer:
             self.selfplay_game(self.nnet, replay_buffer, file_manager)
             self.train_network(replay_buffer, file_manager)
             self.evaluate_vs_randomplay(self.nnet, file_manager, 100)
+            self.save_plot_image(self.nnet.num_steps)
 
             # self.selfplay_game(self.nnet, replay_buffer, file_manager)
             epoch+=1
@@ -139,13 +141,14 @@ class Trainer:
                 policy_logits, value = nnet.inference(shared_input)
                 for i,mcts in enumerate(mcts_list):
                     mcts.after_inference(policy_logits[i][0], value[i])
-                    mcts.add_exploration_noise(mcts.root)
+                    # mcts.add_exploration_noise(mcts.root)
                 ##
 
                 ## mcts simulations
                 for _ in range(num_simulation):
                     for i,mcts in enumerate(mcts_list):
                         mcts.step(policy_logits, value)
+                        mcts.fill_shared_input()
 
                     policy_logits, value = nnet.inference(shared_input)
                     for i, mcts in enumerate(mcts_list):
@@ -177,6 +180,10 @@ class Trainer:
                 result[1] += 1
         win_percentage = round(result[0]/(result[0]+result[2]) , 3)
         print(f'ai win/draw/lose : {result}, winning percentage : {win_percentage}')
+
+        l = len(self.winrate_data[1])
+        self.winrate_data[0].append(l+1)
+        self.winrate_data[1].append(win_percentage)
 
         # save_replay
         for i in range(10):
@@ -222,6 +229,7 @@ class Trainer:
             for _ in range(self.config.num_simulations):
                 for i,mcts in enumerate(mcts_list):
                     mcts.step(policy_logits, value)
+                    mcts.fill_shared_input()
 
                 policy_logits, value = nnet.inference(shared_input)
                 for i, mcts in enumerate(mcts_list):
@@ -258,11 +266,11 @@ class Trainer:
                 augmented_pil = self.augment_2d_list(pi_list[i][j])
                 
                 for bh, pi in zip(augmented_bhl, augmented_pil):
+                    if j == 0:
+                        continue # initial board state's all symmetries are same. use only one.
                     replay_buffer.append_reward_list(rw)
                     replay_buffer.append_board_history(bh)
                     replay_buffer.append_pi_list(pi)
-                    if j == 0:
-                        continue # initial board state's all symmetries are same. use only one.
         
         elapsed = time.time()-selfplay_starttime
         print(f'{num_mcts} games terminated. replay_buffer size is {len(replay_buffer.reward_list)}. elapsed time is {elapsed} seconds.')
@@ -288,12 +296,12 @@ class Trainer:
 
     def train_network(self, replay_buffer: ReplayBuffer, file_manager: FileManager):
         nnet = self.nnet
-        optimizer = torch.optim.AdamW(nnet.parameters(), lr=1e-4)
+        optimizer = torch.optim.Adam(nnet.parameters(), lr=1e-4)
         
 
         train_start = time.time()
         # prevent overfitting when replay_buffer small
-        _training_step = min(self.config.training_steps, int(len(replay_buffer.board_history) // self.config.batch_size)+1)
+        _training_step = min(self.config.training_steps, int(len(replay_buffer.board_history)*2 // self.config.batch_size)+1)
         
         print(f'training network.. step to train is {_training_step}')
         file_manager.save_replay_buffer(replay_buffer)
@@ -304,20 +312,17 @@ class Trainer:
             batch = replay_buffer.sample_batch()
             self.update_weights(optimizer, nnet, batch, i%100==0)
             nnet.increase_num_steps()
-        self.save_plot_image(nnet.num_steps)
-
 
         elapsed = time.time()-train_start
         print(f'finished training network. elapsed {elapsed} seconds')
         file_manager.save_checkpoint()
         file_manager.save_replay_buffer(replay_buffer)
-        
+    
     def loss_nll(self, outputs, targets):
         return -torch.sum(targets * outputs) / targets.size()[0]
     
     def update_weights(self, optimizer, nnet, batch, print_loss=False):
         mse_loss = nn.MSELoss()
-        # cross_entrophy_loss = nn.functional.cross_entropy
         nll_loss = self.loss_nll
         
         image, target_policy, target_value = batch
@@ -328,13 +333,13 @@ class Trainer:
 
         policy_logits, value = nnet(image)
         loss1 = mse_loss(value, target_value)
-        loss2 = nll_loss(torch.log(policy_logits), target_policy) # model policy output is softmax. so log there to NLL Loss.
+        loss2 = nll_loss(policy_logits, target_policy) # model policy output is softmax. so log there to NLL Loss.
         loss = loss1+loss2
 
-        optimizer.zero_grad()
         if print_loss:
             print(loss1)
             print(loss2)
+        optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
@@ -346,13 +351,21 @@ class Trainer:
         
     def save_plot_image(self, num_steps):
         plt.plot(self.plot_data[0], self.plot_data[1])
-        plt.savefig(f'{num_steps}.png')
+        plt.savefig(f'data/plots/{num_steps}.png')
+        plt.close()
+        
+        plt.plot(self.winrate_data[0], self.winrate_data[1])
+        plt.savefig(f'data/plots/winrate_{num_steps}.png')
+        plt.close()
 
     def get_search_statistics(self, root):
         # pi history for training
         sum_visits = sum(child.visit_count for child in root.children.values())
         move_modality = [[[0]*1 for _ in range(MAX_COL)] for _ in range(MAX_ROW)]
         for action, child in root.children.items():
+            if action[0] == -1:
+                continue
+
             if sum_visits == 0:
                 print('sum_visits=0', root)
                 continue

@@ -44,7 +44,7 @@ class AlphaZeroConfig(object):
             self.training_steps = int(5e3)
             self.checkpoint_interval = int(1e3)
             self.window_size = int(5e5)
-            self.batch_size = 1024
+            self.batch_size = 4096
 
         else:
             self.n_games_to_train = 1

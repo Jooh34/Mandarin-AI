@@ -25,7 +25,7 @@ class Node:
     
     def value(self):
         if self.visit_count == 0:
-            return 0
+            return -1
         return self.value_sum / self.visit_count
 
     def is_terminal(self):
@@ -95,8 +95,8 @@ class MCTS:
         self.timer.show(reset)
 
     def fill_shared_input(self):
-        board_np = self.board.get_board_state_to_evaluate()
-        self.shared_input[self.id] = board_np
+        input = self.scratch_game.get_board_state_to_evaluate()
+        self.shared_input[self.id] = input
 
     def step(self, policy_logits, value):
         node = self.root
@@ -141,8 +141,10 @@ class MCTS:
             # print(f'predicted winner : {node.winner}, {node.turn}, root turn:{self.root.turn}=={root_turn}')
             if node.winner == node.turn:
                 self.backpropagate(search_path, 1, node.turn)
-            else:
+            elif node.winner == -node.turn:
                 self.backpropagate(search_path, -1, node.turn)
+            else:
+                self.backpropagate(search_path, 0, node.turn)
                 
         else:
             value = self.evaluate(node, scratch_game, nnet)
@@ -203,8 +205,10 @@ class MCTS:
         if node.is_terminal():
             if node.winner == node.turn:
                 self.backpropagate(self.search_path, 1, node.turn)
-            else:
+            elif node.winner == -node.turn:
                 self.backpropagate(self.search_path, -1, node.turn)
+            else:
+                self.backpropagate(self.search_path, 0, node.turn)
                 
         else:
             self.backpropagate(self.search_path, value, node.turn)

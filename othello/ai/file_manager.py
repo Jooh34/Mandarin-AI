@@ -83,7 +83,7 @@ class FileManager(object):
 
         # black_win = 0
         # white_win = 0
-        # for i in range(100000):
+        # for i in range(100):
         #     bh = replay_buffer.board_history[i]
         #     rw = replay_buffer.reward_list[i]
         #     pi = replay_buffer.pi_list[i]
@@ -94,8 +94,12 @@ class FileManager(object):
         #         white_win+=1
 
         #     print(f'turn : {bh[2][0][0]}, reward : {rw}')
-        #     # for row in pi:
-        #     #     print(row)
+        #     for row in bh[0]:
+        #         print(row)
+        #     for row in bh[1]:
+        #         print(row)
+        #     for row in pi:
+        #         print(row)
         # print(f'black win : {black_win}, white win : {white_win}')
         # raise(Exception("asdasd"))
 

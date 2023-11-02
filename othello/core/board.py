@@ -53,7 +53,7 @@ class Board:
             return 0 # draw
 
     def get_board_state_to_evaluate(self):
-        turn_array = [[(1 if self.turn == 1 else 0)]*MAX_COL for _ in range(MAX_ROW)]
+        turn_array = [[(0 if self.turn == 1 else 1)]*MAX_COL for _ in range(MAX_ROW)]
         black_array = [[(1 if self._board[i][j] == 1 else 0) for j in range(MAX_COL)] for i in range(MAX_ROW)]
         white_array = [[(1 if self._board[i][j] == -1 else 0) for j in range(MAX_COL)] for i in range(MAX_ROW)]
         # for b in black_array:
