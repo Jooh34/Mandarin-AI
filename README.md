@@ -21,7 +21,7 @@ Alpha-Zero based Reinforcement Learning AI
 
 ## Othello 8x8
 
-I thought I almost win the game. But Mandarin-AI was confident of winning the game.
+I thought I almost won the game. But Mandarin-AI was confident of winning the game.
 Let's see example.
 
 https://github.com/Jooh34/Mandarin-AI/assets/15865928/43771a8d-3518-456c-b1e5-1bc0cbfa111a
